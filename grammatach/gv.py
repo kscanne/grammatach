@@ -243,8 +243,6 @@ class GVToken(GoidelicToken):
     head = self.getHead()
     if self['lemma']=='y' and self['deprel']=='mark' and \
       head['upos']=='NOUN' and head['index']==self['index']+1:
-        if self['PartType']==None:
-          self.addFeature('PartType','Inf')
         return [Constraint('Inf', 'This looks like an infinite particle requiring PartType=Inf')]
     return []
 
@@ -252,20 +250,19 @@ class GVToken(GoidelicToken):
     head = self.getHead()
     lemma = self['lemma']
     if lemma=='cha':
-      if head['upos']=='VERB':
+      if head['upos']=='VERB' and head['index']==self['index']+1:
         return [Constraint('Vb', 'This looks like a verbal particle requiring PartType=Vb')]
     if lemma=='dy':
-      if head['upos']=='VERB':
-        if self['PartType']==None:
-          self.addFeature('PartType','Cmpl')
+      if head['upos']=='VERB' and head['index']==self['index']+1:
         return [Constraint('Cmpl', 'This looks like a verbal particle requiring PartType=Cmpl')]
-      elif head['upos']=='ADJ':
-        if self['PartType']==None:
-          self.addFeature('PartType','Ad')
+      elif head['upos']=='ADJ' and head['index']==self['index']+1:
         return [Constraint('Ad','Should have PartType=Ad in adverbial phrase')]
+    if lemma=='nagh':
+      if head['upos']=='VERB' and head['index']==self['index']+1:
+        return [Constraint('Cmpl|Vb','Should be PartType=Cmpl or PartType=Vb')]
     if lemma=='ny':
-      if self['PartType']==None:
-        self.addFeature('PartType','Comp')
+      if head['upos']=='VERB' and head.has('Mood','Imp'):
+        return [Constraint('Vb','Negative imperative particle should have PartType=Vb')]
       if head['upos']=='ADJ' and head.has('Degree','Cmp'):
         return [Constraint('Comp','Comparative particle should have PartType=Comp')]
     if lemma=='y':
