@@ -131,7 +131,7 @@ class UDToken:
       return any(t['upos']=='ADP' and t['deprel']=='case' for t in self._deps)
 
   def _recomputeFeatureString(self):
-    self._data['morph'] = '|'.join(k+'='+self._featDict[k] for k in sorted(self._featDict))
+    self._data['morph'] = '|'.join(k+'='+self._featDict[k] for k in sorted(self._featDict) if k[0]!='X')
   
   def addFeature(self, featName, featVal):
     vals = []
