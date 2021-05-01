@@ -24,6 +24,9 @@ class GAToken(GoidelicToken):
       self.addFeature('Form','HPref')
     else:
       self.killFeature('Form','HPref')
+    # pseudo-features
+    if self.hasPrefixT():
+      self.addFeature('XForm','TPref')
 
   def __getitem__(self, arg):
     answer = super().__getitem__(arg)
@@ -54,7 +57,8 @@ class GAToken(GoidelicToken):
             'PronType',
             'Reflex',
             'Tense',
-            'VerbForm'
+            'VerbForm',
+            'XForm'
            ]
 
   def predictFeatureValue(self, feat):
@@ -117,11 +121,11 @@ class GAToken(GoidelicToken):
     return head['index']==self['index']-1 and head['token'].lower()=='cén'
 
   def precedingDefiniteArticle(self):
-    return any(t['index']==self['index']-1 and t['token'].lower()=='an' for t in self.getDependents())
+    return self.getPredecessor()['token'].lower()=='an'
 
   # preceding an, but also sa, den, ón, etc.
   def anyPrecedingDefiniteArticle(self):
-    return any(t['index']==self['index']-1 and t.has('PronType','Art') for t in self.getDependents())
+    return self.getPredecessor().has('PronType','Art')
 
   def isPossessed(self):
     return any(t.has('Poss','Yes') for t in self.getDependents())
@@ -169,6 +173,14 @@ class GAToken(GoidelicToken):
   def isPastFaigh(self):
     return self['lemma']=='faigh' and self.has('Mood','Ind') and self.has('Tense','Past')
 
+  # "go" will be "go dtí" in fixed expression
+  # CO also specifies prepositions that do take the dative as an alternative:
+  # a, ag, ar, as, chuig, dar, de, do, faoi, fara,
+  # go, i, ionsar, le, ó, roimh, trí, um
+  def isInDativePP(self):
+    nominativePrepositions = ['ach','amhail','gan','go','idir','mar','murach','ná','seachas']
+    return self.isInPP() and not any(t['lemma'] in nominativePrepositions and t['deprel']=='case' for t in self.getDependents())
+
   # upos is 'NUM' and value is between 2 and 19 (though doesn't check "déag")
   def is2Thru19(self):
     if self['upos'] != 'NUM':
@@ -196,26 +208,6 @@ class GAToken(GoidelicToken):
 
   def noConstraint(self):
     return []
-
-  # TODO: handle go dtí, gan, idir, mar?
-  def prefixTNominalContext(self):
-    return self.isNominal() and \
-      ((self.has('Number','Sing') and self.hasLenitableS() and \
-        self.has('Gender','Fem') and self.has('Case','NomAcc') and \
-        (self.anyPrecedingDefiniteArticle() or self.precedingCen())) or \
-       (self.has('Number','Sing') and self.hasLenitableS() and \
-        self.precedingDefiniteArticle() and self.has('Case','Gen') and \
-        self.has('Gender','Masc')) or \
-       (self.has('Case','NomAcc') and self.has('Gender','Masc') and \
-        self.has('Number','Sing') and self.hasInitialVowel() and \
-        (self.precedingDefiniteArticle() or self.precedingCen()) and \
-        not self.isInPP()))
-
-  # TODO: t-aon needs fixing; where should "an" point?
-  def prefixTContext(self):
-    return self.prefixTNominalContext() or \
-        (self['upos']=='DET' and self['lemma']=='aon' and \
-         (self.precedingDefiniteArticle() or self.precedingCen()))
 
   # called separately for NUM's that precede the NOUN they modify
   def predictNounEclipsis(self):
@@ -908,6 +900,35 @@ class GAToken(GoidelicToken):
   def predictVerbFormSCONJ(self):
     # short list? currently arb, dar, más, mura, murab, murar, ós, sular
     return [Constraint('Cop', 'Conjunctions sometimes have VerbForm=Cop feature', True)]
+
+  # TODO: 'maidir leis an airgead a leagan amach'
+  # airgead is obj of leagan, maidir is case of leagan
+  def predictXFormDET(self):
+    if self['lemma']=='aon':
+      if (self.precedingDefiniteArticle() or self.precedingCen()) and \
+           not self.getHead().isInDativePP():
+        return [Constraint('TPref', 'Should be “t-aon” after definite article')]
+    return []
+
+  def predictXFormNOUN(self):
+    if self.hasLenitableS():
+      if self.has('Number','Sing') and self.has('Gender','Fem') and \
+           self.has('Case','NomAcc') and \
+          (self.anyPrecedingDefiniteArticle() or self.precedingCen()):
+        return [Constraint('TPref', 'Should have prefix t before feminine noun after an article')]
+      if self.has('Number','Sing') and self.has('Gender','Masc') and \
+           self.has('Case','Gen') and self.precedingDefiniteArticle():
+        return [Constraint('TPref', 'Should have prefix t before genitive masculine noun after an article')]
+    elif self.hasInitialVowel():
+      # Exceptions in CO for oiread/iomad but these are genderless in treebank
+      if self.has('Number','Sing') and self.has('Gender','Masc') and \
+           self.has('Case','NomAcc') and not self.isInDativePP() and \
+          (self.precedingDefiniteArticle() or self.precedingCen()):
+        return [Constraint('TPref', 'Should have prefix t before masculine noun after an article')]
+    return []
+
+  def predictXFormPROPN(self):
+    return self.predictXFormNOUN()
 
   ########################################################################
 
