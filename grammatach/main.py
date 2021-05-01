@@ -52,7 +52,8 @@ c.loadFromStream(inputStream, loadSicFile(inputStream.name))
 if inputStream is not sys.stdin:
   inputStream.close()
 
-c.runChecks(lexicons[languageCode])
+#c.runChecks(lexicons[languageCode])
+c.runChecks()
 
 if outputReport:
   print(c.reportString())

@@ -53,7 +53,7 @@ class UDToken:
     if self.isMultiwordToken():
       return
 
-    #self.addWarning(lexicon.lookup(self))
+    self.addWarning(lexicon.lookup(self))
 
     for toCheck in self.checkableFeatures():
       if toCheck in self._verified:

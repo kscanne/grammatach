@@ -39,6 +39,8 @@ class UDDictionary:
 
   # return '' if everything is OK and an error message if not
   def lookup(self, tok):
+    if not self._words:
+      return ''
     surf = tok['token']
     if tok['lemma'].islower():
       surf = tok.toLower(surf)

@@ -102,9 +102,8 @@ class UDCorpus:
         ans = ans + '\n' + oneReport
     return ans
 
-  def runChecks(self, dictionaryFileName):
-    #lexicon = UDDictionary(dictionaryFileName)
-    lexicon = None
+  def runChecks(self, dictionaryFileName=None):
+    lexicon = UDDictionary(dictionaryFileName)
     for s in self._sentences:
       s.runChecks(lexicon)
 
