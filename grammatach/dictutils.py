@@ -46,7 +46,7 @@ class UDDictionary:
       return ''
     if tok['upos']=='NUM' and re.search('[0-9]',surf):
       return ''
-    if tok.featureValue('Typo')=='Yes':
+    if tok.has('Typo','Yes'):
       return ''
     if surf not in self._words:
       return str(tok)+' Surface token not in lexicon'
