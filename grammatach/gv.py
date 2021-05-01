@@ -33,6 +33,7 @@ class GVToken(GoidelicToken):
             'Number',
             'PartType',
             'Person',
+            'Polarity',
             'Poss',
             'PronType',
             'Reflex',
@@ -71,7 +72,8 @@ class GVToken(GoidelicToken):
            (lem=='gow' and re.match('h[ie]',tok)) or \
            (lem=='jean' and tok[:3]=='yin') or \
            (lem=='tar' and tok[:3]=='hig') or \
-           (lem=='olk' and tok[:3]=='ves')
+           (lem=='olk' and tok[:3]=='ves') or \
+           tok=='houney'
 
   def isEclipsed(self):
     tok = self['token'].lower()
@@ -287,6 +289,18 @@ class GVToken(GoidelicToken):
   # code hard code certain endings, as in predictNumberVERB
   def predictPersonVERB(self):
     return [Constraint('1|2|3', 'Some verbs have the Person feature', True)]
+
+  def predictPolarityAUX(self):
+    if self['token'].lower() in ['cha','nagh']:
+      self.addFeature('Polarity','Neg')
+      return [Constraint('Neg', 'Negative copula forms should have Polarity=Neg')]
+    return []
+
+  def predictPolarityPART(self):
+    if self['token'].lower() in ['cha','chan','nagh','nar','nara']:
+      self.addFeature('Polarity','Neg')
+      return [Constraint('Neg', 'Negative particles should have Polarity=Neg')]
+    return []
 
   def predictPossDET(self):
     if self['lemma'] in ['dty','e','my','nyn']:
