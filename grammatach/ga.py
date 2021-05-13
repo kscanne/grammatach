@@ -394,6 +394,8 @@ class GAToken(GoidelicToken):
 
   def predictCaseNOUN(self):
     return [Constraint('NomAcc|Gen|Dat|Voc', 'placeholder...', True)]
+    if self.getDeprel()=='vocative':
+      return [Constraint('Voc', 'Should have feature Case=Voc')]
     # TODO: words with no case, Abbr, Foreign?
     #noCase = ['ann', 'céile', 'dála', 'dea', 'doh', '(e)amar', 'foláir', 'gach', 'go', 'leith', 'leor', 'márach', 'scan', 'scun', 'seach', 'sul', 'té', 'thuilleadh', 'tólamh', 'uile']
 
