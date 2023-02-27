@@ -4,6 +4,7 @@ Gaeilge na hAlban, agus Gaeilge Mhanann.
 Braitheann sé go mór ar na corpais pharsáilte seo:
 
 * <https://github.com/UniversalDependencies/UD_Irish-IDT>
+* <https://github.com/UniversalDependencies/UD_Irish-Cadhan>
 * <https://github.com/UniversalDependencies/UD_Manx-Cadhan>
 * <https://github.com/UniversalDependencies/UD_Scottish_Gaelic-ARCOSG>
 
