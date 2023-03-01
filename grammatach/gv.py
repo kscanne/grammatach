@@ -130,7 +130,7 @@ class GVToken(GoidelicToken):
   def predictEmphatic(self):
     tok = self['token'].lower()
     if re.search('[^y]s$', tok) and self['lemma'][-1]!='s':
-      return [Constraint('Emp', 'Could be an emphatic form', True)]
+      return [Constraint('Emp|None', 'Could be an emphatic form')]
     return []
 
 ####################### START PREDICTORS ##########################
@@ -140,7 +140,7 @@ class GVToken(GoidelicToken):
   def predictCaseDET(self):
     # TODO: check for singular NOUN eventually
     if self['token'].lower()=='ny':
-      return [Constraint('Gen', 'Could be article before genitive feminine singular', True)]
+      return [Constraint('Gen|None', 'Could be article before genitive feminine singular')]
     return []
 
   def predictDefiniteDET(self):
@@ -153,17 +153,17 @@ class GVToken(GoidelicToken):
     # weak check; permitted any time token differs from lemma
     # can't even check initial s' because of copula forms (s'laik, etc.)
     if self['token'].lower() != self['lemma']:
-      return [Constraint('Cmp|Sup', 'Could be a comparative or superlative adjective', True)]
+      return [Constraint('Cmp|Sup|None', 'Could be a comparative or superlative adjective')]
     return []
 
   # only Len
   def predictFormADJ(self):
-    return [Constraint('Len', 'placeholder...', True)]
+    return [Constraint('Len|None', 'placeholder...')]
     return []
 
   # Ecl, Emp, HPref, Len
   def predictFormNOUN(self):
-    return [Constraint('Ecl|Emp|HPref|Len', 'placeholder...', True)]
+    return [Constraint('Ecl|Emp|HPref|Len|None', 'placeholder...')]
     ans = self.predictNounEclipsis()
     ans.extend(self.predictNounHPref())
     ans.extend(self.predictNounLenition())
@@ -172,7 +172,7 @@ class GVToken(GoidelicToken):
 
   # only Len; TODO: PM pp. 7-11
   def predictFormNUM(self):
-    return [Constraint('Len', 'placeholder...', True)]
+    return [Constraint('Len|None', 'placeholder...')]
     return []
 
   def predictFormPROPN(self):
@@ -180,7 +180,7 @@ class GVToken(GoidelicToken):
 
   # Ecl, Emp, Len
   def predictFormVERB(self):
-    return [Constraint('Ecl|Emp|Len', 'placeholder...', True)]
+    return [Constraint('Ecl|Emp|Len|None', 'placeholder...')]
     ans = self.predictVerbEclipsis()
     ans.extend(self.predictVerbLenition())
     ans.extend(self.predictEmphatic())
@@ -191,7 +191,7 @@ class GVToken(GoidelicToken):
     if re.match("n[y']?$", self['token'].lower()):
       if self.has('PronType','Art'):
       # TODO: check for singular NOUN eventually
-        return [Constraint('Fem', 'Could be article before genitive feminine singular', True)]
+        return [Constraint('Fem|None', 'Could be article before genitive feminine singular')]
       if self.has('Poss','Yes'):
         return [Constraint('Fem|Masc', 'Possessive form “ny” must have Gender feature')]
     if self['lemma']=='e':
@@ -212,7 +212,7 @@ class GVToken(GoidelicToken):
   def predictNumberADJ(self):
     tok = self['token'].lower()
     if tok != self['lemma'] and tok[-2:]=='ey':
-      return [Constraint('Plur', 'Looks like it could be plural', True)]
+      return [Constraint('Plur|None', 'Looks like it could be plural')]
     return []
 
   # articles and possessives
@@ -220,7 +220,7 @@ class GVToken(GoidelicToken):
     if self['lemma'] == 'yn':
       if self['token'].lower()=='ny':
         # TODO: check following noun
-        return [Constraint('Sing|Plur', 'Could be plural article or genitive feminine singular', True)]
+        return [Constraint('Sing|Plur|None', 'Could be plural article or genitive feminine singular')]
       else:
         return [Constraint('Sing', 'Appears to be a singular article, requiring Number=Sing')]
     elif self.has('Poss','Yes'):
@@ -239,7 +239,7 @@ class GVToken(GoidelicToken):
 
   # TODO: could check endings, -ym => Sing, -mayd or -jee => Plur
   def predictNumberVERB(self):
-    return [Constraint('Sing|Plur', 'Some verbs have a Number feature', True)]
+    return [Constraint('Sing|Plur|None', 'Some verbs have a Number feature')]
 
   def predictPartTypeADP(self):
     head = self.getHead()
@@ -288,7 +288,7 @@ class GVToken(GoidelicToken):
 
   # code hard code certain endings, as in predictNumberVERB
   def predictPersonVERB(self):
-    return [Constraint('1|2|3', 'Some verbs have the Person feature', True)]
+    return [Constraint('1|2|3|None', 'Some verbs have the Person feature')]
 
   def predictPolarityAUX(self):
     if self['token'].lower() in ['cha','nagh']:

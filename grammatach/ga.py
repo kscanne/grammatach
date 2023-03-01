@@ -233,7 +233,7 @@ class GAToken(GoidelicToken):
         return [Constraint('Ecl', 'Should be eclipsed in set phrase')]
       # ar dhóigh, ar ndóigh, ar dóigh are all possible!
       if self['lemma']=='dóigh':
-        return [Constraint('Ecl', 'Optionally eclipsed in set phrase', True)]
+        return [Constraint('Ecl|None', 'Optionally eclipsed in set phrase')]
       if self['lemma'] in ['cúl','tús']:
         return [Constraint('Ecl|Len', 'Can be eclipsed in set phrase')]
     if prToken=='dar' and self['lemma'] in ['dóigh']:
@@ -247,7 +247,7 @@ class GAToken(GoidelicToken):
       return [Constraint('Ecl', 'Should be eclipsed by number 7-10')]
     if pr.has('PronType','Art') and pr.has('Number','Sing') and \
          not self.hasInitialDental() and not self.hasInitialVowel() and \
-         noun.isInPP() and noun.has('Case','NomAcc'):
+         noun.isInPP() and noun.has('Case','Nom'):
       return [Constraint('Ecl|Len', 'Should be eclipsed or lenited by the preceding definite article')]
     return []
 
@@ -278,17 +278,17 @@ class GAToken(GoidelicToken):
       if h.has('Number','Sing'):
         if h.has('Case','Gen') and h.has('Gender','Masc'):
           return [Constraint('Len', 'Adjective is lenited after genitive singular masculine noun')]
-        if h.has('Case','NomAcc') and h.has('Gender','Fem'):
+        if h.has('Case','Nom') and h.has('Gender','Fem'):
           return [Constraint('Len', 'Adjective is lenited after nominative singular feminine noun')]
         if h.has('Case','Voc'):
           return [Constraint('Len', 'Adjective is lenited after a vocative singular noun')]
-      elif h.has('Number','Plur') and h.has('Case','NomAcc') and \
+      elif h.has('Number','Plur') and h.has('Case','Nom') and \
            h.hasSlenderFinalConsonant() and h['lemma'].lower()!='caora':
         return [Constraint('Len', 'Adjective is lenited after a nominative plural noun ending in a slender consonant')]
     return []
     
   def predictNounLenition(self):
-    return [Constraint('Len','Allow any len',True)]
+    return [Constraint('Len|None','Allow any len')]
     if not self.isLenitable():
       return []
 
@@ -334,7 +334,7 @@ class GAToken(GoidelicToken):
     if prToken=='na' and self.has('Gender','Fem') and \
           self.has('Case','Gen') and self.has('Number','Sing'):
       return [Constraint('HPref', 'Should have prefix h following an ordinal')]
-    if prToken in ['na','sna'] and self.has('Case','NomAcc') and \
+    if prToken in ['na','sna'] and self.has('Case','Nom') and \
           self.has('Number','Plur'):
       return [Constraint('HPref', 'Should have prefix h following “na”')]
     if prToken=='de' and self['lemma']=='Íde':
@@ -364,7 +364,7 @@ class GAToken(GoidelicToken):
   def predictEmphasis(self):
     # TODO: draw on lexicon to make iff prediction of Emp
     if re.search("([sn][ea]|se?an)$", self['token'].lower()):
-      return [Constraint('Emp', 'Could possibly be an emphatic ending but not certain', True)]
+      return [Constraint('Emp|None', 'Could possibly be an emphatic ending but not certain')]
  
   def predictVowelForm(self):
     if re.search("b[’'h]?$", self['token'].lower()):
@@ -393,7 +393,7 @@ class GAToken(GoidelicToken):
     return []
 
   def predictCaseNOUN(self):
-    return [Constraint('NomAcc|Gen|Dat|Voc', 'placeholder...', True)]
+    return [Constraint('Nom|Gen|Dat|Voc|None', 'placeholder...')]
     if self.getDeprel()=='vocative':
       return [Constraint('Voc', 'Should have feature Case=Voc')]
     # TODO: words with no case, Abbr, Foreign?
@@ -558,7 +558,7 @@ class GAToken(GoidelicToken):
   # could have a list of exceptions but doesn't add much value
   # since missing genders would be picked up by lexicon check
   def predictGenderNOUN(self):
-    return [Constraint('Fem|Masc', 'placeholder...', True)]
+    return [Constraint('Fem|Masc|None', 'placeholder...')]
 
   def predictGenderPROPN(self):
     return self.predictGenderNOUN()
@@ -570,7 +570,7 @@ class GAToken(GoidelicToken):
     return []
 
   def predictMoodAUX(self):
-    return [Constraint('Cnd|Int', 'Copula can sometimes have Mood=Int or Mood=Cnd', True)]
+    return [Constraint('Cnd|Int|None', 'Copula can sometimes have Mood=Int or Mood=Cnd')]
 
   def predictMoodPART(self):
     head = self.getHead()
@@ -590,7 +590,7 @@ class GAToken(GoidelicToken):
     # include deprel nmod here because of coordinations through gen. sing nouns
     if self.has('Number','Plur') and self.getDeprel() in ['amod','nmod']:
       head = self.getUltimateHead()
-      if head.has('Case','NomAcc'):
+      if head.has('Case','Nom'):
         if head.hasSlenderFinalConsonant():
           #if self['NounType']==None:
           #  self.addFeature('NounType','Slender')
@@ -633,7 +633,7 @@ class GAToken(GoidelicToken):
     return []
 
   def predictNumberADP(self):
-    return [Constraint('Sing|Plur', 'Some pronomials have Number feature', True)]
+    return [Constraint('Sing|Plur|None', 'Some pronomials have Number feature')]
 
   def predictNumberDET(self):
     possessives = {'ár': 'Plur', 'bhur': 'Plur', 'do': 'Sing', 'mo': 'Sing'}
@@ -666,11 +666,11 @@ class GAToken(GoidelicToken):
     return self.predictNumberNOUN()
         
   def predictNumberVERB(self):
-    return [Constraint('Sing|Plur', 'Some verbs have Number feature', True)]
+    return [Constraint('Sing|Plur|None', 'Some verbs have Number feature')]
     return []
 
   def predictNumTypeNUM(self):
-    return [Constraint('Card|Ord', 'Numbers have optional NumType feature', True)]
+    return [Constraint('Card|Ord|None', 'Numbers have optional NumType feature')]
 
   def predictPartTypePART(self):
     if self['lemma'] in ['an','ar','cha','chan','gur','ná','níor']:
@@ -710,7 +710,7 @@ class GAToken(GoidelicToken):
     return []
 
   def predictPersonADP(self):
-    return [Constraint('0|1|2|3', 'Tokens tagged ADP sometimes have the Person feature', True)]
+    return [Constraint('0|1|2|3|None', 'Tokens tagged ADP sometimes have the Person feature')]
 
   def predictPersonAUX(self):
     if self['token'].lower() in ['sé','sí']:
@@ -731,7 +731,7 @@ class GAToken(GoidelicToken):
     return []
 
   def predictPersonVERB(self):
-    return [Constraint('0|1|2|3', 'Verbs sometimes have the Person feature', True)]
+    return [Constraint('0|1|2|3|None', 'Verbs sometimes have the Person feature')]
 
   def predictPolarityAUX(self):
     if re.match('(n|cha)', self['token'].lower()):
@@ -752,10 +752,10 @@ class GAToken(GoidelicToken):
     return []
 
   def predictPossADP(self):
-    return [Constraint('Yes', 'ADP could have Poss=Yes', True)]
+    return [Constraint('Yes|None', 'ADP could have Poss=Yes')]
 
   def predictPossDET(self):
-    return [Constraint('Yes', 'DET could have Poss=Yes', True)]
+    return [Constraint('Yes|None', 'DET could have Poss=Yes')]
 
   # Usually case in PPs, but can be mark ("go dtí go mbeidh...")
   def predictPrepFormADP(self):
@@ -792,9 +792,9 @@ class GAToken(GoidelicToken):
       return [Constraint('Rel', 'Appears to be combined preposition with “a” (all that) and need PronType=Rel feature')]
     # no need to be comprehensive here, caught by lexicon
     if re.search('(s[ae]|ne|se?an)$', tok):
-      return [Constraint('Art|Emp', 'This could be an emphatic form', True)]
+      return [Constraint('Art|Emp|None', 'This could be an emphatic form')]
     if self.getDeprel()=='case':
-      return [Constraint('Art', 'This could be PronType=Art', True)]
+      return [Constraint('Art|None', 'This could be PronType=Art')]
     return []
 
   def predictPronTypeADV(self):
@@ -806,7 +806,7 @@ class GAToken(GoidelicToken):
     if self['token'].lower() in ['seo','sin']:
       return [Constraint('Dem', 'Feature PronType=Dem is required here')]
     else:
-      return [Constraint('Rel', 'Some copulas are PronType=Rel', True)]
+      return [Constraint('Rel|None', 'Some copulas are PronType=Rel')]
 
   def predictPronTypeDET(self):
     if not self.has('Poss','Yes'):
@@ -827,14 +827,14 @@ class GAToken(GoidelicToken):
 
   def predictPronTypePRON(self):
     # values: Dem, Int, Emp, Rel, Ind   TODO 
-    return [Constraint('Dem|Emp|Ind|Int|Rel', 'placeholder...',True)]
+    return [Constraint('Dem|Emp|Ind|Int|Rel|None', 'placeholder...')]
 
   def predictPronTypeVERB(self):
     tok = self['token'].lower()
     if re.match('at[aá]',tok):
       return [Constraint('Rel', 'Forms like “atá” require the feature PronType=Rel')]
     if re.search('s$',tok):
-      return [Constraint('Rel', 'Verb forms ending in s are sometimes relative which would require PronType=Rel', True)]
+      return [Constraint('Rel|None', 'Verb forms ending in s are sometimes relative which would require PronType=Rel')]
     return []
 
   def predictReflexPRON(self):
@@ -880,7 +880,7 @@ class GAToken(GoidelicToken):
     return super().predictTenseVERB()
 
   def predictVerbFormADJ(self):
-    return [Constraint('Part', 'Adjectives can have VerbForm=Part feature', True)]
+    return [Constraint('Part|None', 'Adjectives can have VerbForm=Part feature')]
 
   def predictVerbFormAUX(self):
     return [Constraint('Cop', 'Copulas must have VerbForm=Cop feature')]
@@ -897,11 +897,11 @@ class GAToken(GoidelicToken):
 
   def predictVerbFormPRON(self):
     # rare: caidé, cérbh, cér currently 
-    return [Constraint('Cop', 'Pronouns sometimes have VerbForm=Cop feature', True)]
+    return [Constraint('Cop|None', 'Pronouns sometimes have VerbForm=Cop feature')]
 
   def predictVerbFormSCONJ(self):
     # short list? currently arb, dar, más, mura, murab, murar, ós, sular
-    return [Constraint('Cop', 'Conjunctions sometimes have VerbForm=Cop feature', True)]
+    return [Constraint('Cop|None', 'Conjunctions sometimes have VerbForm=Cop feature')]
 
   # TODO: 'maidir leis an airgead a leagan amach'
   # airgead is obj of leagan, maidir is case of leagan
@@ -915,7 +915,7 @@ class GAToken(GoidelicToken):
   def predictXFormNOUN(self):
     if self.hasLenitableS():
       if self.has('Number','Sing') and self.has('Gender','Fem') and \
-           self.has('Case','NomAcc') and \
+           self.has('Case','Nom') and \
           (self.anyPrecedingDefiniteArticle() or self.precedingCen()):
         return [Constraint('TPref', 'Should have prefix t before feminine noun after an article')]
       if self.has('Number','Sing') and self.has('Gender','Masc') and \
@@ -924,7 +924,7 @@ class GAToken(GoidelicToken):
     elif self.hasInitialVowel():
       # Exceptions in CO for oiread/iomad but these are genderless in treebank
       if self.has('Number','Sing') and self.has('Gender','Masc') and \
-           self.has('Case','NomAcc') and not self.isInDativePP() and \
+           self.has('Case','Nom') and not self.isInDativePP() and \
           (self.precedingDefiniteArticle() or self.precedingCen()):
         return [Constraint('TPref', 'Should have prefix t before masculine noun after an article')]
     return []

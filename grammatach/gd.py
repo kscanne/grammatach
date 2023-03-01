@@ -62,12 +62,12 @@ class GDToken(GoidelicToken):
   # TODO: see Irish; base this on if head noun is Case=Gen?
   def predictCaseDET(self):
     if self['lemma']=='an':
-      return [Constraint('Gen', 'Some articles are annotated Case=Gen', True)]
+      return [Constraint('Gen|None', 'Some articles are annotated Case=Gen')]
     return []
 
   # TODO... complicated like Irish
   def predictCaseNOUN(self):
-    return [Constraint('Nom|Gen|Dat|Voc', 'placeholder...', True)]
+    return [Constraint('Nom|Gen|Dat|Voc|None', 'placeholder...')]
 
   def predictCasePROPN(self):
     return self.predictCaseNOUN()
@@ -76,7 +76,7 @@ class GDToken(GoidelicToken):
   # and in that case requiring *both* Cmp and Sup since that seems 
   # to be the convention here...
   def predictDegreeADJ(self):
-    return [Constraint('Cmp|Sup', 'Adjectives are sometimes Degree=Cmp,Sup', True)]
+    return [Constraint('Cmp|Sup|None', 'Adjectives are sometimes Degree=Cmp,Sup')]
 
   def predictFormPRON(self):
     if self['token'].lower() in ['àsan', 'esan', 'iadsan', 'ise', 'mis\'', 'mise', 'sibhse', 'sinne', 'thus\'', 'thusa', 'tusa']:
@@ -89,13 +89,13 @@ class GDToken(GoidelicToken):
 
   def predictGenderDET(self):
     if self['lemma']=='an' and not self.has('Poss','Yes'):
-      return [Constraint('Fem|Masc', 'Some articles have Gender feature', True)]
+      return [Constraint('Fem|Masc|None', 'Some articles have Gender feature')]
     if self['lemma']=='a' and self.has('Poss','Yes') and self.has('Person','3'):
       return [Constraint('Fem|Masc', '3rd person possessive requires Gender feature')]
     return []
 
   def predictGenderNOUN(self):
-    return [Constraint('Fem|Masc', 'placeholder...', True)]
+    return [Constraint('Fem|Masc|None', 'placeholder...')]
 
   def predictGenderPRON(self):
     if self['lemma']=='a' and self.has('Poss','Yes'):
@@ -112,7 +112,7 @@ class GDToken(GoidelicToken):
     if self['token'].lower() == 'an':
       return [Constraint('Int', 'Copula “an” requires feature Mood=Int')]
     if self['token'].lower() == 'nach':
-      return [Constraint('Int', 'Copula “nach” sometimes has Mood=Int', True)]
+      return [Constraint('Int|None', 'Copula “nach” sometimes has Mood=Int')]
     return []
 
   def predictMoodVERB(self):
@@ -141,7 +141,7 @@ class GDToken(GoidelicToken):
 
   def predictNumberNOUN(self):
     if self['Foreign']==None and self['VerbForm']==None:
-      return [Constraint('Sing|Plur', 'Most nouns except verbal nouns have a Number feature', True)]
+      return [Constraint('Sing|Plur|None', 'Most nouns except verbal nouns have a Number feature')]
     return []
 
   def predictNumberPRON(self):
@@ -167,7 +167,7 @@ class GDToken(GoidelicToken):
 
   # Irish marks Person=3 also
   def predictPersonVERB(self):
-    return [Constraint('0|1|2', 'Verbs sometimes have the Person feature', True)]
+    return [Constraint('0|1|2|None', 'Verbs sometimes have the Person feature')]
 
   def predictPolarityAUX(self):
     tok = self['token'].lower()
@@ -182,7 +182,7 @@ class GDToken(GoidelicToken):
     if tok in ['cha', 'chan', 'na', 'nach']:
       return [Constraint('Neg', 'This particle should have Polarity=Neg')]
     if tok == 'na':
-      return [Constraint('Neg', 'This particle sometimes has Polarity=Neg', True)]
+      return [Constraint('Neg|None', 'This particle sometimes has Polarity=Neg')]
     return []
 
   def predictPossDET(self):
@@ -205,7 +205,7 @@ class GDToken(GoidelicToken):
 
   # usually, but not always, before superlative ADJ
   def predictPronTypeAUX(self):
-    return [Constraint('Rel', 'Copulae sometimes have PronType=Rel', True)]
+    return [Constraint('Rel|None', 'Copulae sometimes have PronType=Rel')]
 
   def predictPronTypePART(self):
     if self.has('PartType','Vb'):
@@ -217,7 +217,7 @@ class GDToken(GoidelicToken):
 
   # only PronType=Int, about 4% of all PRON (dè, cò, etc.)
   def predictPronTypePRON(self):
-    return [Constraint('Int', 'Some pronouns have PronType=Int', True)]
+    return [Constraint('Int|None', 'Some pronouns have PronType=Int')]
 
   # Irish is just lemma 'féin'
   def predictReflexPRON(self):

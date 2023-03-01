@@ -60,7 +60,7 @@ class GoidelicToken(UDToken):
  ################### Methods requiring override in children ##################
 
   def predictVerbFormNOUN(self):
-    return [Constraint('Inf|Vnoun', 'Nouns can have VerbForm feature', True)]
+    return [Constraint('Inf|Vnoun|None', 'Nouns can have VerbForm feature')]
 
   def hasInitialVowel(self):
     raise NotImplementedError('should only be called for specific language')
