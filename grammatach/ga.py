@@ -121,7 +121,8 @@ class GAToken(GoidelicToken):
     return head['index']==self['index']-1 and head['token'].lower()=='cén'
 
   def precedingDefiniteArticle(self):
-    return self.getPredecessor()['token'].lower()=='an'
+    tok = self.getPredecessor()['token'].lower()
+    return tok in ['an', "'n", 'a', "a'"] and self.anyPrecedingDefiniteArticle()
 
   # preceding an, but also sa, den, ón, etc.
   def anyPrecedingDefiniteArticle(self):
