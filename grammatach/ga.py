@@ -43,7 +43,7 @@ class GAToken(GoidelicToken):
             'Case',
             'Definite',
             #'Degree',
-            #'Form',
+            'Form',
             'Gender',   # same as Number...
             'NounType',
             'Number',   # go léir, dhá X móra, chomh X...
@@ -151,9 +151,7 @@ class GAToken(GoidelicToken):
 
   def isLenitedPastVerbContext(self):
     pers = self['Person']
-    if pers==None:
-      return False
-    pers = int(pers[0])
+    pers = 3 if pers==None else int(pers[0])
     lemma = self['lemma']
     return self.has('Tense','Past') and \
            ((pers==0 and lemma in ['bí','clois','feic','tar','téigh']) or \
@@ -208,12 +206,12 @@ class GAToken(GoidelicToken):
   ####################### END BOOLEAN METHODS ##########################
 
   def noConstraint(self):
-    return []
+    return [Constraint('None', 'This feature is incompatible with this part-of-speech tag')]
 
   # called separately for NUM's that precede the NOUN they modify
   def predictNounEclipsis(self):
     if not self.isEclipsable():
-      return []
+      return [Constraint('!Ecl', 'Not an eclipsable initial letter')]
     noun = self.getHead() if self['upos']=='NUM' else self
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
@@ -234,7 +232,7 @@ class GAToken(GoidelicToken):
         return [Constraint('Ecl', 'Should be eclipsed in set phrase')]
       # ar dhóigh, ar ndóigh, ar dóigh are all possible!
       if self['lemma']=='dóigh':
-        return [Constraint('Ecl|None', 'Optionally eclipsed in set phrase')]
+        return [Constraint('Ecl|!Ecl', 'Optionally eclipsed in set phrase')]
       if self['lemma'] in ['cúl','tús']:
         return [Constraint('Ecl|Len', 'Can be eclipsed in set phrase')]
     if prToken=='dar' and self['lemma'] in ['dóigh']:
@@ -254,7 +252,7 @@ class GAToken(GoidelicToken):
 
   def predictVerbEclipsis(self):
     if not self.isEclipsable():
-      return []
+      return [Constraint('!Ecl', 'Not an eclipsable initial letter')]
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
     # TODO: ADP "faoina ndearna", "gáire faoina ndúirt sé", 'dá bhfuil agam'
@@ -270,7 +268,7 @@ class GAToken(GoidelicToken):
 
   def predictAdjectiveLenition(self):
     if not self.isLenitable():
-      return []
+      return [Constraint('!Len', 'Cannot lenite an unlenitable consonant')]
     pr = self.getPredecessor()
     if pr['upos']=='AUX' and (pr.has('Tense','Past') or pr.has('Mood','Cnd')):
       return [Constraint('Len', 'Adjective is lenited after past or conditional copula')]
@@ -295,7 +293,7 @@ class GAToken(GoidelicToken):
 
   def predictVerbLenition(self):
     if not self.isLenitable():
-      return []
+      return [Constraint('!Len', 'Cannot lenite an unlenitable consonant')]
     if self.isLenitedPastVerbContext():
       return [Constraint('Len', 'This past tense verb must be lenited')]
     if self.has('Aspect','Imp') and self.has('Tense','Past') and self['lemma'] != 'abair':
@@ -307,6 +305,8 @@ class GAToken(GoidelicToken):
     return []
 
   def predictAdjectivePrefixH(self):
+    if not self.admitsPrefixH():
+      return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
     if prToken in ['chomh','go']:
@@ -317,6 +317,8 @@ class GAToken(GoidelicToken):
   # a (her), a dhá, á (her), cá, go, le, na (gsf), na (common pl)
   # Ó patronym, ordinals except chéad, and trí/ceithre/sé+uaire
   def predictNounPrefixH(self):
+    if not self.admitsPrefixH():
+      return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
     if prToken=='ó' and pr.has('PartType','Pat'):
@@ -343,6 +345,8 @@ class GAToken(GoidelicToken):
     return []
 
   def predictVerbPrefixH(self):
+    if not self.admitsPrefixH():
+      return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
     if prToken=='ná' and pr.has('Mood','Imp'):
@@ -350,6 +354,8 @@ class GAToken(GoidelicToken):
     return []
 
   def predictOtherPrefixH(self):
+    if not self.admitsPrefixH():
+      return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
     if self['upos']=='PRON' and prToken in ['cé','le','ní','pé']:
@@ -365,7 +371,7 @@ class GAToken(GoidelicToken):
   def predictEmphasis(self):
     # TODO: draw on lexicon to make iff prediction of Emp
     if re.search("([sn][ea]|se?an)$", self['token'].lower()):
-      return [Constraint('Emp|None', 'Could possibly be an emphatic ending but not certain')]
+      return [Constraint('Emp|!Emp', 'Could possibly be an emphatic ending but not certain')]
     return [Constraint('!Emp', 'Word does not have an emphatic ending')]
  
   def predictVowelForm(self):
@@ -448,7 +454,9 @@ class GAToken(GoidelicToken):
     return [Constraint('Pos', 'Should default to Degree=Pos')]
 
   def predictFormADJ(self):
-    return []
+    ans = self.predictAdjectiveLenition()
+    ans.extend(self.predictAdjectivePrefixH())
+    return ans
 
   def predictFormADP(self):
     ans = []
@@ -458,8 +466,9 @@ class GAToken(GoidelicToken):
     if self['deprel']=='fixed' and \
        ((prToken=='go' and self['token'].lower()=='dtí') or \
         (prToken=='i' and self['token'].lower() in ['bhfeighil','dteannta','dtrátha','dtús','gceann','gcionn','gcoinne','gcóir','gcoitinne','mbun','ndiaidh'])):
-      ans.append(Constraint('Ecl', 'Should be eclipsed in set phrase'))
-    return ans
+      return [Constraint('Ecl', 'Should be eclipsed in set phrase')]
+    else:
+      return [Constraint('None', 'Prepositions usually do not have a Form')]
 
   # just in one set phrase; get rid of fixed or retag components?
   def predictFormADV(self):
@@ -517,8 +526,7 @@ class GAToken(GoidelicToken):
 
   # Ecl, Len, HPref
   def predictFormPROPN(self):
-    ans = self.predictNounLenition()
-    return ans
+    return self.predictFormNOUN()
 
   # (rarely) VF (murab, arb), 1x Len (dhá for dá)
   def predictFormSCONJ(self):
