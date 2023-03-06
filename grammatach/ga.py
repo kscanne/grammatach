@@ -219,7 +219,7 @@ class GAToken(GoidelicToken):
     prToken = pr['token'].lower()
     if self['token'].lower()=='dhá':  # bhur dhá mbád; exception to super()
       return []
-    panG = super.predictNounEclipsis()
+    panG = super().predictNounEclipsis()
     if len(panG)>0:
       return panG
     if prToken=='dhá' and pr.getPredecessor().isPluralPossessive():
@@ -289,14 +289,14 @@ class GAToken(GoidelicToken):
     return []
     
   def predictNounLenition(self):
-    return [Constraint('Len|None','Allow any len')]
     if not self.isLenitable():
-      return []
+      return [Constraint('!Len', 'Cannot lenite an unlenitable consonant')]
+    return [Constraint('Len|None','Allow any len')]
 
   def predictVerbLenition(self):
     if not self.isLenitable():
       return []
-    if self.isLenitedPastVerbContext(self):
+    if self.isLenitedPastVerbContext():
       return [Constraint('Len', 'This past tense verb must be lenited')]
     if self.has('Aspect','Imp') and self.has('Tense','Past') and self['lemma'] != 'abair':
       return [Constraint('Len', 'Imperfect verb must be lenited')]
@@ -366,10 +366,12 @@ class GAToken(GoidelicToken):
     # TODO: draw on lexicon to make iff prediction of Emp
     if re.search("([sn][ea]|se?an)$", self['token'].lower()):
       return [Constraint('Emp|None', 'Could possibly be an emphatic ending but not certain')]
+    return [Constraint('!Emp', 'Word does not have an emphatic ending')]
  
   def predictVowelForm(self):
     if re.search("b[’'h]?$", self['token'].lower()):
       return [Constraint('VF', 'Copula before vowel or f must have Form=VF')]
+    return [Constraint('!VF', 'Form=VF not allowed without initial vowel or f')]
 
 ##################### predictFeatureUPOS methods #####################
 
@@ -486,12 +488,14 @@ class GAToken(GoidelicToken):
     ans = self.predictEmphasis()
     ans.extend(self.predictNounLenition())
     ans.extend(self.predictNounEclipsis())
-    ans.extend(self.predictNounHPref())
+    ans.extend(self.predictNounPrefixH())
     return ans
 
   # Ecl, Len, HPref
   def predictFormNUM(self):
     ans = []
+    pr = self.getPredecessor()
+    prToken = pr['token'].lower()
     # Eclipsis
     if prToken=='faoin' and self['lemma'].lower()=='céad':
       ans.append(Constraint('Ecl', 'Should be eclipsed in set phrase'))
