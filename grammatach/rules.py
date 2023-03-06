@@ -25,7 +25,7 @@ class Constraint:
   # return True iff this constraint is satisfied
   def isSatisfied(self, udValues):
     if udValues==None:
-      return 'None' in self._permitted or (len(self._permitted)==0 and len(self._forbidden)>0)
+      return 'None' in self._permitted or len(self._forbidden)>0
     else:
       return any(val in self._permitted for val in udValues) or \
              any(val not in udValues for val in self._forbidden)
