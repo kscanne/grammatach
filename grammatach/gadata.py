@@ -155,7 +155,7 @@ unlenitedAfterAr = frozenset([
 ])
 
 # surface tokens for which we need to permit None after "thar"
-unlenitedAfterAr = frozenset([
+unlenitedAfterThar = frozenset([
   'baile',
   'barr',
   'bóchna',
