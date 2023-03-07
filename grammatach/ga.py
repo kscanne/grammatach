@@ -86,8 +86,17 @@ class GAToken(GoidelicToken):
   def isSevenThruTen(self):
     return self['lemma'] in ['seacht','7','ocht','8','naoi','9','deich','10']
 
+  def hasInitialF(self):
+    return re.match(r'[fF]', self['lemma'])
+
+  def hasInitialBMP(self):
+    return re.match(r'[bmpBMP]', self['lemma'])
+
   def hasInitialDental(self):
     return re.match(r'[dntlsDNTLS]', self['lemma'])
+
+  def hasFinalDental(self):
+    return re.search(r'[dntlsDNTLS]$', self['lemma'])
 
   # TODO: but what about déarfainn,abair? check token too?
   def hasInitialVowel(self):
@@ -120,19 +129,38 @@ class GAToken(GoidelicToken):
     head = self.getHead()
     return head['index']==self['index']-1 and head['token'].lower()=='cén'
 
+  # this really means preceding "sa", "san", "den", "don"
+  # These must lenite a following noun according to C.O.
+  def precedingLenitingPrepPlusArticle(self):
+    pr = self.getPredecessor()
+    if pr==None:
+      return False
+    return pr['lemma'] in ['i', 'de', 'do'] and self.anyPrecedingDefiniteArticle()
+
+  # this really means "an" or variants, not "na"
   def precedingDefiniteArticle(self):
-    tok = self.getPredecessor()['token'].lower()
+    pr = self.getPredecessor()
+    if pr==None:
+      return False
+    tok = pr['token'].lower()
     return tok in ['an', "'n", 'a', "a'"] and self.anyPrecedingDefiniteArticle()
 
-  # preceding an, but also sa, den, ón, etc.
+  # preceding an/na but also sa, san, den, don, ón, faoin, etc.
+  # used primarily for propagating definiteness
   def anyPrecedingDefiniteArticle(self):
-    return self.getPredecessor().has('PronType','Art')
+    pr = self.getPredecessor()
+    if pr==None:
+      return False
+    return pr.has('PronType','Art')
 
   def isPossessed(self):
     return any(t.has('Poss','Yes') for t in self.getDependents())
 
   def hasGachDependent(self):
     return any(t['lemma']=='gach' and t['upos']=='DET' for t in self.getDependents())
+
+  def isQualifiedNoun(self):
+    return self.isNominal() and any((t.isNominal() and t.has('Case','Gen')) or (t['upos']=='ADJ' and t['deprel']=='amod') for t in self.getDependents())
 
   # First any is for "Airteagal III" or "rang 5"
   # Second any is for stuff like "bus a dó", "rang a 5"
@@ -192,12 +220,27 @@ class GAToken(GoidelicToken):
 
   def has2Thru19(self):
     pr = self.getPredecessor()
+    if pr==None:
+      return False
     return pr['deprel']=='nummod' and pr.is2Thru19()
+
+  def is3Thru6(self):
+    if self['upos'] != 'NUM':
+      return False
+    return re.search('^[3-6]$', self['lemma']) or self['lemma'] in ['trí','ceathair','cúig','sé']
+
+  def has3Thru6(self):
+    pr = self.getPredecessor()
+    if pr==None:
+      return False
+    return pr['deprel']=='nummod' and pr.is3Thru6()
 
   # at Goidelic level, basically checks for amod of a nominal
   # with some exceptions; Irish-specific exceptions added here
   def isAttributiveAdjective(self):
     pr = self.getPredecessor()
+    if pr==None:
+      return False
     return super().isAttributiveAdjective() and \
            not self.has('VerbForm','Part')  and \
            not (pr['lemma']=='go' and self['lemma']=='léir') and \
@@ -254,6 +297,8 @@ class GAToken(GoidelicToken):
     if not self.isEclipsable():
       return [Constraint('!Ecl', 'Not an eclipsable initial letter')]
     pr = self.getPredecessor()
+    if pr==None:
+      return [Constraint('!Ecl', 'Sentence initial verb cannot be eclipsed')]
     prToken = pr['token'].lower()
     # TODO: ADP "faoina ndearna", "gáire faoina ndúirt sé", 'dá bhfuil agam'
     if (pr.has('PartType','Vb') and prToken in ['an','go','nach']) or \
@@ -285,11 +330,138 @@ class GAToken(GoidelicToken):
            h.hasSlenderFinalConsonant() and h['lemma'].lower()!='caora':
         return [Constraint('Len', 'Adjective is lenited after a nominative plural noun ending in a slender consonant')]
     return []
-    
+
   def predictNounLenition(self):
     if not self.isLenitable():
       return [Constraint('!Len', 'Cannot lenite an unlenitable consonant')]
-    return [Constraint('Len|None','Allow any len')]
+    pr = self.getPredecessor()
+    prToken = pr['token'].lower()
+
+    # 10.2.1
+    if pr!=None and self.anyPrecedingDefiniteArticle() and pr.has('Number','Sing') and prToken!='na':
+      if self.hasInitialDental():
+        return [Constraint('!Len', '10.2.1.e1: Do not lenite a noun beginning with d, t, or s after the definite article')]
+      if self.precedingDefiniteArticle():  # just "an"
+        if self.has('Case','Gen') and self.has('Gender','Masc') and \
+           self.has('Number','Sing'):
+          return [Constraint('Len', '10.2.1.b: Must lenite a masculine singular noun in the genitive after the definite article')]
+        elif self.isInDativePP():
+          return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite in the dative after the definite article')]
+        elif self.has('Case','Nom') and self.has('Gender','Fem') and \
+           self.has('Number','Sing'):
+          return [Constraint('Len', '10.2.1.a: Must lenite a feminine singular noun after the definite article')]
+      elif self.precedingLenitingPrepPlusArticle(): # san, sa, den, don
+        return [Constraint('Len', '10.2.1.c: Always lenite after sa, san, den, or don')]
+      else: # remainder are examples like "faoin", "fén", "ón"
+        return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite after faoin, ón, etc.')]
+
+    # 10.2.2
+    if self.has('Case', 'Voc') and any(t.has('PartType','Voc') for t in self.getDependents()):
+      return [Constraint('Len', '10.2.2: Always lenite after vocative particle')]
+
+    # 10.2.3
+    if pr.has('Poss','Yes'):
+      if pr['lemma'] in ['mo', 'do'] or pr.has('Gender','Masc'):
+        return [Constraint('Len','10.2.3.a: Always lenite after possessives mo, do, or singular masculine “a”')]
+      if pr.has('Gender','Fem'):
+        return [Constraint('!Len','10.2.3.a: Never lenite after feminine possessive')]
+    if pr['lemma'] in ['gach_uile', 'uile']:
+      return [Constraint('Len','10.2.3.b: Always lenite after the adjective “uile”')]
+    if pr['lemma'] in ['aon', 'céad']:
+      if self.hasInitialDental():
+        return [Constraint('!Len', '10.2.3.c.e1: Do not lenite a noun beginning with d, t, or s after “aon” or “céad”')]
+      else:
+        if pr['upos']=='DET':
+          return [Constraint('Len', '10.2.3.c: Lenite a noun after “aon”')]
+        elif pr['upos']=='NUM':
+          if pr.has('NumType','Ord') or pr['lemma']=='aon':
+            return [Constraint('Len', '10.2.4.a: Lenite a noun after “aon” or ordinal “céad”')]
+
+    # 10.2.4
+    if pr['upos']=='NUM':
+      if prToken in ['dá','dhá']:
+        prpr = pr.getPredecessor()
+        if prpr.has('Poss','Yes') and (prpr.has('Gender','Fem') or prpr.has('Number','Plur')):
+          return [Constraint('!Len', '10.2.4.b.e1: Do not lenite after “dhá” if preceded by plural or feminine possessive')]
+        return [Constraint('Len', '10.2.4.b: Lenite after numbers “dá” or “dhá”')]
+      elif self.has3Thru6():
+        if self['lemma'] in ['cent', 'bliain', 'seachtain', 'ceann', 'cloigeann', 'fiche', 'pingin', 'trian', 'troigh', 'uair']:
+          return [Constraint('!Len', '10.2.4.c.e1: Do not lenite certain special plural forms after numbers 3-6')]
+        else:
+          return [Constraint('Len', '10.2.4.c: Lenite nouns after numbers 3-6')]
+
+    # 10.2.5
+    if pr['upos']=='PART' and pr.has('PartType','Inf') and pr['lemma']=='a' and self.has('VerbForm','Inf'):
+      return [Constraint('Len', '10.2.5.a: Always lenite a verbal noun after the preposition “a”')]
+    if pr['upos']=='ADP' and not pr.has('Poss','Yes'):
+      if pr['lemma'] in ['de', 'do', 'a', 'faoi', 'ionsar', 'mar', 'ó', 'roimh', 'trí']:
+        return [Constraint('Len', '10.2.5.a: Always lenite after certain simple prepositions')]
+      elif pr['lemma']=='um':
+        if self.hasInitialBMP():
+          return [Constraint('!Len', '10.2.5.a.e1: Do not lenite nouns starting with b, m, or p after “um”')]
+        else:
+          return [Constraint('Len', '10.2.5.a: Always lenite after certain simple prepositions')]
+      elif pr['lemma']=='ar':
+        if self['lemma'] in gadata.unlenitedAfterAr:
+          if self.isQualifiedNoun():
+            return [Constraint('Len', '10.2.5.b.e1: Lenite a noun after “ar” when it has an adjective or genitive noun dependent')]
+          else:
+            return [Constraint('Len|!Len', '10.2.5.b.e2: Noun may be unlenited after “ar” when used in an adverbial phrase')]
+        else:
+          return [Constraint('Len', '10.2.5.b: Typically we lenite a noun after “ar”')]
+      elif pr['lemma']=='gan':
+        if self.isQualifiedNoun():
+          return [Constraint('!Len', '10.2.5.c.e1: Do not lenite a noun after “gan” when it has an adjective or genitive noun dependent')]
+        elif pr['head']!=self['index']:
+          return [Constraint('!Len', '10.2.5.c.e2: Do not lenite a noun after “gan” when it is the object of a verbal noun')]
+        elif self.hasInitialDental() or self.hasInitialF():
+          if self['lemma']=='fios':
+            return [Constraint('Len', '10.2.5.c.e3: Lenite after “gan” in the set phrase “gan fhios”')]
+          else:
+            return [Constraint('!Len', '10.2.5.c.e4: Do not lenite a noun after “gan” when it starts with d, t, s, or f')]
+        elif self['VerbForm']!=None:
+          return [Constraint('!Len', '10.2.5.c.e5: Do not lenite a verbal noun after “gan”')]
+        elif self['upos']=='PROPN':
+          return [Constraint('!Len', '10.2.5.c.e6: Do not lenite a proper name after “gan”')]
+        else:
+          return [Constraint('Len', '10.2.5.c: Lenite a noun after “gan”')]
+      elif pr['lemma']=='thar':
+        if self['lemma'] in gadata.unlenitedAfterThar:
+          return [Constraint('Len|!Len', '10.2.5.e.e2: Noun may be unlenited after “thar” when used in an adverbial phrase')]
+        else:
+          return [Constraint('Len', '10.2.5.e: Lenite a noun after “thar”')]
+
+    # handle idir separately since we need to check coordination, no "pr"
+
+    # 10.2.6
+
+    # 10.2.7; use head not predecessor for "tuairisc pharlaiminte agus phobail"
+    hd = self.getHead()
+    if hd.isNominal() and hd.has('Case','Nom') and hd.has('Gender','Fem') and hd.has('Number','Sing') and self.has('Case','Gen') and not self.has('Definite','Def'):
+      if hd.hasFinalDental() and self.hasInitialDental():
+        return [Constraint('!Len', '10.2.7.a: Do not lenite an initial dental after a feminine noun ending in a dental')]
+      if self.hasInitialF():
+        if hd['lemma'] in ['beirt', 'dís']:
+          return [Constraint('Len', '10.2.7.b.e1: Lenite an initial f after “beirt” or “dís”')]
+        else:
+          return [Constraint('!Len', '10.2.7.b: Do not lenite an initial f after a feminine noun')]
+      if self.has('Number','Plur'):
+        if hd['lemma'] in ['beirt', 'dís']:
+          return [Constraint('Len', '10.2.7.c.e1: Lenite a genitive plural after “beirt” or “dís”')]
+        elif hd['lemma']=='clann' and self['lemma']=='mac':
+          return [Constraint('Len', '10.2.7.c.e2: Lenite a genitive plural in the set phrase “clann mhac”')]
+        else:
+          return [Constraint('!Len', '10.2.7.c: Do not lenite a genitive plural noun after a feminine noun')]
+      if hd['lemma'] in ['barraíocht', 'breis', 'díobháil', 'easpa', 'iomarca', 'roinnt']:
+        return [Constraint('!Len', '10.2.7.d: Do not lenite a genitive noun after a feminine that expresses an indefinite quantity')]
+      # TODO 10.2.7.e,f,g :(  Need big lists....
+      return [Constraint('Len', '10.2.7: Lenite a genitive singular noun following a feminine noun')]
+
+
+
+
+
+    return [Constraint('!Len','10.2: Not sure why this noun is lenited')]
 
   def predictVerbLenition(self):
     if not self.isLenitable():
@@ -373,7 +545,7 @@ class GAToken(GoidelicToken):
     if re.search("([sn][ea]|se?an)$", self['token'].lower()):
       return [Constraint('Emp|!Emp', 'Could possibly be an emphatic ending but not certain')]
     return [Constraint('!Emp', 'Word does not have an emphatic ending')]
- 
+
   def predictVowelForm(self):
     if re.search("b[’'h]?$", self['token'].lower()):
       return [Constraint('VF', 'Copula before vowel or f must have Form=VF')]
@@ -677,7 +849,7 @@ class GAToken(GoidelicToken):
 
   def predictNumberPROPN(self):
     return self.predictNumberNOUN()
-        
+
   def predictNumberVERB(self):
     return [Constraint('Sing|Plur|None', 'Some verbs have Number feature')]
     return []
@@ -793,7 +965,7 @@ class GAToken(GoidelicToken):
           any(t.isNominal() and t['deprel']=='nmod' and not t.isInPP() for t in self.getDependents()):
         return [Constraint('Cmpd', 'This should be fixed and PrepForm=Cmpd')]
     return []
-    
+
   def predictPronTypeADP(self):
     tok = self['token'].lower()
     # values: Art, Emp, Prs, Rel (rare)
@@ -814,7 +986,7 @@ class GAToken(GoidelicToken):
     if self['lemma'] in ['cá', 'conas']:
       return [Constraint('Int', 'These interrogatives require PronType=Int')]
     return []
-     
+
   def predictPronTypeAUX(self):
     if self['token'].lower() in ['seo','sin']:
       return [Constraint('Dem', 'Feature PronType=Dem is required here')]
