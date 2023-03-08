@@ -197,3 +197,22 @@ unlenitedAfterThar = frozenset([
   'tréanmhuir',
   'tréimhse'
 ])
+
+# CO 10.2.7.j
+# Do not lenite indefinite noun after these words
+feminineGroups = frozenset([
+  'aicme',
+  'comhairle',
+  'corparáid',
+  'cuideachta',
+  'earnáil',
+  'feidhmeannacht',
+  'foireann',
+  'gníomhaireacht',
+  'institiúid',
+  'oifig',
+  'rannóg',
+  'roinn',
+  'scéim',
+  'seirbhís'
+])
