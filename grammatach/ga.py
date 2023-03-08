@@ -210,13 +210,17 @@ class GAToken(GoidelicToken):
   def isLenitingParticle(self):
     return False
 
-  # the PRON case is "sin a bhfuil agam"; note we can't use
-  # self.has('Tense','Past') to discard "ar chuir..." b/c of PRON case
+  # a, ina, lena, etc. but *not* past tense ar, inar, lenar, etc.
+  # Also includes the PRON case: "sin a bhfuil agam"; note we can't use
+  # self.has('Tense','Past') to discard "duine ar chuir..." b/c of PRON case
   def isEclipsingRelativizer(self):
     return self.has('PronType','Rel') and not re.search('r$', self['token'].lower()) and (self.has('Form','Indirect') or self['upos']=='PRON')
 
-  def isPastFaigh(self):
-    return self['lemma']=='faigh' and self.has('Mood','Ind') and self.has('Tense','Past')
+  # Eclipsed forms after "ní": "ní bhfuair", "ní bhfaighidh", "ní bhfaighfeá"...
+  def isEclipsedFaigh(self):
+    return self['lemma']=='faigh' and \
+      ((self.has('Mood','Ind') and self.has('Tense','Past')) or \
+       self.has('Tense','Fut') or self.has('Mood','Cnd'))
 
   # "go" will be "go dtí" in fixed expression
   # CO also specifies prepositions that do take the dative as an alternative:
@@ -270,7 +274,6 @@ class GAToken(GoidelicToken):
     return [Constraint('None', 'This feature is incompatible with this part-of-speech tag')]
 
   # TODO: ar an gcéad dul síos, mar aon leis an gcaisleán (fixed),
-  # ar a chéile, lena chéile, de réir a chéile (a tagged plural)
   #
   # also called for NUM's that precede the NOUN they modify
   def predictNounEclipsis(self):
@@ -296,7 +299,11 @@ class GAToken(GoidelicToken):
     if self['token'].lower()=='dhá':  # bhur dhá mbád; in dhá bhád
       return [Constraint('!Ecl', '10.6.2.e1: Do not eclipse “dhá”')]
     if pr.isPluralPossessive():
-      return [Constraint('Ecl','10.6.2: Should be eclipsed by preceding plural possessive')]
+      if self['lemma']=='céile' and self.isInPP() and pr.has('Person','3'):
+        # TODO: change IDT annotation?
+        return [Constraint('Len','Lenite “chéile” in various prepositional phrases')]
+      else:
+        return [Constraint('Ecl','10.6.2: Should be eclipsed by preceding plural possessive')]
     if prToken=='dhá' and pr.getPredecessor()!=None and pr.getPredecessor().isPluralPossessive():
       return [Constraint('Ecl','10.6.2.e2: Should be eclipsed by plural possessive + dhá')]
     if pr['deprel']=='nummod' and pr.isSevenThruTen():
@@ -334,15 +341,23 @@ class GAToken(GoidelicToken):
       return [Constraint('!Ecl', 'Sentence initial verb cannot be eclipsed')]
     prToken = pr['token'].lower()
     # TODO: ADP "faoina ndearna", "gáire faoina ndúirt sé", 'dá bhfuil agam'
-    if (pr.has('PartType','Vb') and prToken in ['an','go','nach']) or \
+    if pr.isEclipsingRelativizer():
+      return [Constraint('Ecl', '10.8.1: Should be eclipsed by preceding verbal particle introducting a relative clause')]
+    if (pr.has('PartType','Vb') and prToken in ['go','nach']) or \
        (pr.has('PartType','Cmpl') and prToken in ['go','nach']) or \
-       pr.isEclipsingRelativizer() or \
-       (self.isPastFaigh() and prToken=='ní') or \
        (pr['upos']=='ADV' and prToken=='cá') or \
        (pr['upos']=='SCONJ' and \
            prToken in ['dá','go','mara','muna','mura','sula']):
-      return [Constraint('Ecl', 'Should be eclipsed by preceding verbal particle')]
-    return []
+      return [Constraint('Ecl', '10.8.2.a: Should be eclipsed by preceding verbal particle')]
+    if pr.has('PartType','Vb') and prToken=='an':
+      if self.hasInitialVowel():
+        return [Constraint('!Ecl', '10.8.2.a.e1: Do not eclipse an initial vowel after interrogative particle “an”')]
+      else:
+        return [Constraint('Ecl', '10.8.2.a: Should be eclipsed by preceding interrogative particle “an”')]
+
+    if self.isEclipsedFaigh() and prToken=='ní':
+      return [Constraint('Ecl', '10.8.2.b: Special forms of the verb “faigh” should be eclipsed following “ní”')]
+    return [Constraint('!Ecl','10.8: Not sure why this verb is eclipsed')]
 
   def predictAdjectiveLenition(self):
     if not self.isLenitable():
