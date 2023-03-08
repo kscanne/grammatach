@@ -83,6 +83,18 @@ class GAToken(GoidelicToken):
   def isEclipsed(self):
     return re.match(r'(n-?[AEIOUÁÉÍÓÚ]|n-[aeiouáéíóú]|m[Bb]|MB|g[Cc]|GC|n[DdGg]|N[DG]|bh[Ff]|BHF|b[Pp]|BP|d[Tt]|DT)', self['token'])
 
+  # "lemmas" is a tuple of lemmas to match
+  # lemma of self should be the last in the tuple
+  def isInPhrase(self, lemmas):
+    curr = self
+    for i in range(len(lemmas)):
+      if curr['lemma'] != lemmas[-1-i]:
+        return False
+      curr = curr.getPredecessor()
+      if curr==None:
+        return False
+    return True
+
   def isSevenThruTen(self):
     return self['lemma'] in ['seacht','7','ocht','8','naoi','9','deich','10']
 
@@ -96,7 +108,7 @@ class GAToken(GoidelicToken):
     return re.match(r'[dntlsDNTLS]', self['lemma'])
 
   def hasFinalDental(self):
-    return re.search(r'[dntlsDNTLS]$', self['lemma'])
+    return re.search(r'[dntls]$', self['token'].lower())
 
   # TODO: but what about déarfainn,abair? check token too?
   def hasInitialVowel(self):
@@ -257,6 +269,9 @@ class GAToken(GoidelicToken):
   def noConstraint(self):
     return [Constraint('None', 'This feature is incompatible with this part-of-speech tag')]
 
+  # TODO: ar an gcéad dul síos, mar aon leis an gcaisleán (fixed),
+  # ar a chéile, lena chéile, de réir a chéile (a tagged plural)
+  #
   # also called for NUM's that precede the NOUN they modify
   def predictNounEclipsis(self):
     if not self.isEclipsable():
@@ -266,10 +281,14 @@ class GAToken(GoidelicToken):
     if pr==None:
       return [Constraint('!Ecl', '10.6: Never eclipse a noun or number at the beginning of a sentence')]
     prToken = pr['token'].lower()
-    # TODO "um an dtaca" (despite dental), "mar an gcéanna" (need Ecl only)
+    if self.isInPhrase(('mar','an','céanna')) or \
+       self.isInPhrase(('thar','ais')) or \
+       self.isInPhrase(('um','an','taca')):
+      return [Constraint('Ecl', '10.6.1.a: Should be eclipsed in set phrase')]
     if pr.has('PronType','Art') and pr.has('Number','Sing') and \
+         pr['lemma'] not in ['de','do','i'] and \
          not self.hasInitialDental() and not self.hasInitialVowel() and \
-         noun.isInPP() and noun.has('Case','Nom'):
+         noun.isInDativePP() and noun.has('Case','Nom'):
       return [Constraint('Ecl|Len', '10.6.1.a: Should be eclipsed or lenited by the preceding definite article')]
     # NB. gpl noun can be Number=Sing: "seolta na dtrí bhád"
     if prToken=='na' and noun.has('Case','Gen') and pr.has('Number','Plur'):
@@ -281,8 +300,8 @@ class GAToken(GoidelicToken):
     if prToken=='dhá' and pr.getPredecessor()!=None and pr.getPredecessor().isPluralPossessive():
       return [Constraint('Ecl','10.6.2.e2: Should be eclipsed by plural possessive + dhá')]
     if pr['deprel']=='nummod' and pr.isSevenThruTen():
-      if self['lemma'] in ['cent', 'euro']:
-        return [Constraint('Ecl', '10.6.3.e1: Never  eclipse “cent” or “euro”')]
+      if self['lemma'] in ['cent', 'euro', 'déag']:
+        return [Constraint('!Ecl', '10.6.3.e1: Never eclipse “cent”, “euro”, or “déag”')]
       else:
         return [Constraint('Ecl', '10.6.3: Should be eclipsed by number 7-10')]
     if prToken=='i' and (pr['deprel']=='case' or self['deprel']=='fixed'):
@@ -297,7 +316,9 @@ class GAToken(GoidelicToken):
         return [Constraint('Ecl|Len', '10.6.4.b: Can be eclipsed in set phrase')]
     if prToken=='dar' and self['lemma'] in ['dóigh']:
       return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
-    if prToken=='fá' and pr['upos']=='ADP' and self['lemma'] in ['taobh']:
+    if re.search(r'^d[aá]r$', prToken) and re.search(r'^g?ch?ionn$', self['token'].lower()):
+      return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
+    if prToken=='fá' and pr['upos']=='ADP' and self['lemma']=='taobh':
       return [Constraint('Ecl|Len', '10.6.4.b: Can be eclipsed in set phrase')]
     if prToken=='go' and self['lemma'] in ['cuimhin', 'díth', 'dtí', 'fios']:
       return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
