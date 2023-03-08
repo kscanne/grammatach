@@ -153,6 +153,12 @@ class GAToken(GoidelicToken):
       return False
     return pr.has('PronType','Art')
 
+  def isVerbalNounWithAg(self):
+    pr = self.getPredecessor()
+    if pr==None:
+      return False
+    return pr['lemma']=='ag' and self.has('VerbForm','Vnoun')
+
   def isPossessed(self):
     return any(t.has('Poss','Yes') for t in self.getDependents())
 
@@ -251,47 +257,53 @@ class GAToken(GoidelicToken):
   def noConstraint(self):
     return [Constraint('None', 'This feature is incompatible with this part-of-speech tag')]
 
-  # called separately for NUM's that precede the NOUN they modify
+  # also called for NUM's that precede the NOUN they modify
   def predictNounEclipsis(self):
     if not self.isEclipsable():
-      return [Constraint('!Ecl', 'Not an eclipsable initial letter')]
+      return [Constraint('!Ecl', '10.6: Not an eclipsable initial letter')]
     noun = self.getHead() if self['upos']=='NUM' else self
     pr = self.getPredecessor()
+    if pr==None:
+      return [Constraint('!Ecl', '10.6: Never eclipse a noun or number at the beginning of a sentence')]
     prToken = pr['token'].lower()
-    if self['token'].lower()=='dhá':  # bhur dhá mbád; exception to super()
-      return []
-    panG = super().predictNounEclipsis()
-    if len(panG)>0:
-      return panG
-    if prToken=='dhá' and pr.getPredecessor().isPluralPossessive():
-      return [Constraint('Ecl','Should be eclipsed by possessive + dhá')]
-    if pr['deprel']=='case' and prToken=='i':
-      return [Constraint('Ecl', 'Should be eclipsed by preceding “i”')]
-    # NB. gpl noun can be Number=Sing: "seolta na dtrí bhád"
-    if prToken=='na' and noun.has('Case','Gen') and pr.has('Number','Plur'):
-      return [Constraint('Ecl', 'Should be eclipsed by preceding “na” in genitive plural')]
-    if prToken=='ar' and pr['upos']=='ADP':
-      if self['lemma']=='diaidh': # i ndiaidh ar ndiaidh
-        return [Constraint('Ecl', 'Should be eclipsed in set phrase')]
-      # ar dhóigh, ar ndóigh, ar dóigh are all possible!
-      if self['lemma']=='dóigh':
-        return [Constraint('Ecl|!Ecl', 'Optionally eclipsed in set phrase')]
-      if self['lemma'] in ['cúl','tús']:
-        return [Constraint('Ecl|Len', 'Can be eclipsed in set phrase')]
-    if prToken=='dar' and self['lemma'] in ['dóigh']:
-      return [Constraint('Ecl', 'Should be eclipsed in set phrase')]
-    if prToken=='fá' and pr['upos']=='ADP' and self['lemma'] in ['taobh']:
-      return [Constraint('Ecl|Len', 'Can be eclipsed in set phrase')]
-    if prToken in ['cá','go'] and self['lemma']=='fios':
-      return [Constraint('Ecl', 'Should be eclipsed in set phrase')]
-    # TODO "um an dtaca"
-    if pr['deprel']=='nummod' and pr.isSevenThruTen():
-      return [Constraint('Ecl', 'Should be eclipsed by number 7-10')]
+    # TODO "um an dtaca" (despite dental), "mar an gcéanna" (need Ecl only)
     if pr.has('PronType','Art') and pr.has('Number','Sing') and \
          not self.hasInitialDental() and not self.hasInitialVowel() and \
          noun.isInPP() and noun.has('Case','Nom'):
-      return [Constraint('Ecl|Len', 'Should be eclipsed or lenited by the preceding definite article')]
-    return []
+      return [Constraint('Ecl|Len', '10.6.1.a: Should be eclipsed or lenited by the preceding definite article')]
+    # NB. gpl noun can be Number=Sing: "seolta na dtrí bhád"
+    if prToken=='na' and noun.has('Case','Gen') and pr.has('Number','Plur'):
+      return [Constraint('Ecl', '10.6.1.b: Should be eclipsed by preceding “na” in genitive plural')]
+    if self['token'].lower()=='dhá':  # bhur dhá mbád; in dhá bhád
+      return [Constraint('!Ecl', '10.6.2.e1: Do not eclipse “dhá”')]
+    if pr.isPluralPossessive():
+      return [Constraint('Ecl','10.6.2: Should be eclipsed by preceding plural possessive')]
+    if prToken=='dhá' and pr.getPredecessor()!=None and pr.getPredecessor().isPluralPossessive():
+      return [Constraint('Ecl','10.6.2.e2: Should be eclipsed by plural possessive + dhá')]
+    if pr['deprel']=='nummod' and pr.isSevenThruTen():
+      if self['lemma'] in ['cent', 'euro']:
+        return [Constraint('Ecl', '10.6.3.e1: Never  eclipse “cent” or “euro”')]
+      else:
+        return [Constraint('Ecl', '10.6.3: Should be eclipsed by number 7-10')]
+    if prToken=='i' and (pr['deprel']=='case' or self['deprel']=='fixed'):
+      return [Constraint('Ecl', '10.6.4.a: Should be eclipsed by preceding “i”')]
+    if prToken=='ar' and pr['upos']=='ADP':
+      if self['lemma']=='diaidh': # i ndiaidh ar ndiaidh
+        return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
+      # ar dhóigh, ar ndóigh, ar dóigh are all possible!
+      if self['lemma']=='dóigh':
+        return [Constraint('Ecl|!Ecl', '10.6.4.b: Optionally eclipsed in set phrase')]
+      if self['lemma'] in ['cúl','tús']:
+        return [Constraint('Ecl|Len', '10.6.4.b: Can be eclipsed in set phrase')]
+    if prToken=='dar' and self['lemma'] in ['dóigh']:
+      return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
+    if prToken=='fá' and pr['upos']=='ADP' and self['lemma'] in ['taobh']:
+      return [Constraint('Ecl|Len', '10.6.4.b: Can be eclipsed in set phrase')]
+    if prToken=='go' and self['lemma'] in ['cuimhin', 'díth', 'dtí', 'fios']:
+      return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
+    if prToken=='cá' and self['lemma']=='fios':
+      return [Constraint('Ecl', '10.6.5: Should be eclipsed in set phrase “cá bhfios”')]
+    return [Constraint('!Ecl','10.6: Not sure why this is eclipsed')]
 
   def predictVerbEclipsis(self):
     if not self.isEclipsable():
@@ -453,12 +465,50 @@ class GAToken(GoidelicToken):
         else:
           return [Constraint('!Len', '10.2.7.c: Do not lenite a genitive plural noun after a feminine noun')]
       if hd['lemma'] in ['barraíocht', 'breis', 'díobháil', 'easpa', 'iomarca', 'roinnt']:
-        return [Constraint('!Len', '10.2.7.d: Do not lenite a genitive noun after a feminine that expresses an indefinite quantity')]
+        return [Constraint('!Len', '10.2.7.d: Do not lenite a genitive noun after a feminine noun that expresses an indefinite quantity')]
       # TODO 10.2.7.e,f,g :(  Need big lists....
+
+      if hd.isVerbalNounWithAg():
+        return [Constraint('!Len', '10.2.7.h: Do not lenite the object of a feminine verbal noun following “ag”')]
+
+      # TODO 10.2.7.i  Might need a list, even then tricky to tell
+      # whether word is being used as common or verbal noun (e.g. lorg)
+
+      if hd['lemma'] in gadata.feminineGroups:
+        return [Constraint('!Len', '10.2.7.j: Do not lenite a genitive noun after various feminine noun for groups or organizations')]
+
+      if self['lemma'] in ['dlí', 'sí']:
+        return [Constraint('!Len', '10.2.7.k: Do not lenite “dlí” or “sí” after a feminine noun')]
+
+      if self['lemma'] in ['bliain', 'coicís', 'mí', 'seachtain']:
+        return [Constraint('!Len', '10.2.7.l: Do not lenite various units of time after a feminine noun')]
+
+      if self.isQualifiedNoun():
+        if hd['lemma'] in ['beirt', 'dís']:
+          return [Constraint('Len', '10.2.7.m.e1: Lenite nouns after “beirt” or “dís” even if the genitive noun is modified by an adjective or another noun')]
+        return [Constraint('!Len', '10.2.7.m: Do not lenite after a feminine noun if the genitive noun is modified by an adjective or another noun')]
+
       return [Constraint('Len', '10.2.7: Lenite a genitive singular noun following a feminine noun')]
 
 
+    # 10.2.8
+    if hd.isNominal() and hd.has('Case','Nom') and hd.has('Number','Plur') and hd.hasSlenderFinalConsonant() and self.has('Case','Gen') and self.has('Number','Sing') and not self.has('Definite','Def'):
+      if hd.hasFinalDental() and self.hasInitialDental():
+        return [Constraint('!Len', '10.2.8.a: Do not lenite an initial dental after a plural noun ending in a slender dental')]
+      if self.hasInitialF():
+        return [Constraint('!Len', '10.2.8.b: Do not lenite an initial f after a plural noun ending in a slender consonant')]
+      # 10.2.8.d,e need lists :(
+      if self.isQualifiedNoun():
+        if self['lemma']=='beirt':
+          return [Constraint('Len', '10.2.8.f.e1: Lenite “beirt” following a plural noun ending in a slender consonant even when it is followed by a genitive')]
+        else:
+          return [Constraint('!Len', '10.2.8.f: Do not lenite a genitive singular noun following a plural noun ending in a slender consonant if it is modified by an adjective or another genitive noun')]
 
+      return [Constraint('Len', '10.2.8: Lenite a genitive singular noun following a plural ending in a slender consonant')]
+
+    # 10.2.9; include just for clearer error message
+    if pr.isNominal() and pr.has('Case','Gen') and not self.has('Definite','Def') and self['head']==self['index']-1:
+      return [Constraint('!Len','10.2.9: Do not lenite a noun following a genitive')]
 
 
     return [Constraint('!Len','10.2: Not sure why this noun is lenited')]
@@ -1011,7 +1061,7 @@ class GAToken(GoidelicToken):
     return []
 
   def predictPronTypePRON(self):
-    # values: Dem, Int, Emp, Rel, Ind   TODO 
+    # values: Dem, Int, Emp, Rel, Ind   TODO
     return [Constraint('Dem|Emp|Ind|Int|Rel|None', 'placeholder...')]
 
   def predictPronTypeVERB(self):
@@ -1081,7 +1131,7 @@ class GAToken(GoidelicToken):
     return []
 
   def predictVerbFormPRON(self):
-    # rare: caidé, cérbh, cér currently 
+    # rare: caidé, cérbh, cér currently
     return [Constraint('Cop|None', 'Pronouns sometimes have VerbForm=Cop feature')]
 
   def predictVerbFormSCONJ(self):
