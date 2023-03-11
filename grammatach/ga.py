@@ -67,6 +67,7 @@ class GAToken(GoidelicToken):
   ####################### BOOLEAN METHODS ##########################
 
   # ok on Foreign=Yes b/c of gd words
+  # BUG: lú/beag, measa/olc, ... others?
   def isLenitable(self):
     return re.match(r'([bcdfgmpt]|s[lnraeiouáéíóú])', self['lemma'], flags=re.IGNORECASE) and self['token'][0].lower() != 'r'
 
@@ -94,9 +95,6 @@ class GAToken(GoidelicToken):
       if curr==None:
         return False
     return True
-
-  def isSevenThruTen(self):
-    return self['lemma'] in ['seacht','7','ocht','8','naoi','9','deich','10']
 
   def hasInitialF(self):
     return re.match(r'[fF]', self['lemma'])
@@ -257,6 +255,20 @@ class GAToken(GoidelicToken):
       return False
     return pr['deprel']=='nummod' and pr.is3Thru6()
 
+  def is7Thru10(self):
+    return self['lemma'] in ['seacht','7','ocht','8','naoi','9','deich','10']
+
+  def has7Thru10(self):
+    pr = self.getPredecessor()
+    if pr==None:
+      return False
+    return pr['deprel']=='nummod' and pr.is7Thru10()
+
+  # checking for "AUX" or lemma "is" does not suffice; there are some
+  # with tag SCONJ ("más", "murar", etc.), or PART ("ba" in "ba mhó")
+  def isCopula(self):
+    return self.has('VerbForm','Cop')
+
   # at Goidelic level, basically checks for amod of a nominal
   # with some exceptions; Irish-specific exceptions added here
   def isAttributiveAdjective(self):
@@ -306,7 +318,7 @@ class GAToken(GoidelicToken):
         return [Constraint('Ecl','10.6.2: Should be eclipsed by preceding plural possessive')]
     if prToken=='dhá' and pr.getPredecessor()!=None and pr.getPredecessor().isPluralPossessive():
       return [Constraint('Ecl','10.6.2.e2: Should be eclipsed by plural possessive + dhá')]
-    if pr['deprel']=='nummod' and pr.isSevenThruTen():
+    if pr['deprel']=='nummod' and pr.is7Thru10():
       if self['lemma'] in ['cent', 'euro', 'déag']:
         return [Constraint('!Ecl', '10.6.3.e1: Never eclipse “cent”, “euro”, or “déag”')]
       else:
@@ -335,10 +347,10 @@ class GAToken(GoidelicToken):
 
   def predictVerbEclipsis(self):
     if not self.isEclipsable():
-      return [Constraint('!Ecl', 'Not an eclipsable initial letter')]
+      return [Constraint('!Ecl', '10.8: Not an eclipsable initial letter')]
     pr = self.getPredecessor()
     if pr==None:
-      return [Constraint('!Ecl', 'Sentence initial verb cannot be eclipsed')]
+      return [Constraint('!Ecl', '10.8: Sentence initial verb cannot be eclipsed')]
     prToken = pr['token'].lower()
     # TODO: ADP "faoina ndearna", "gáire faoina ndúirt sé", 'dá bhfuil agam'
     if pr.isEclipsingRelativizer():
@@ -361,23 +373,48 @@ class GAToken(GoidelicToken):
 
   def predictAdjectiveLenition(self):
     if not self.isLenitable():
-      return [Constraint('!Len', 'Cannot lenite an unlenitable consonant')]
-    pr = self.getPredecessor()
-    if pr['upos']=='AUX' and (pr.has('Tense','Past') or pr.has('Mood','Cnd')):
-      return [Constraint('Len', 'Adjective is lenited after past or conditional copula')]
-    if self['deprel']=='amod':
+      return [Constraint('!Len', '10.3: Cannot lenite an unlenitable consonant')]
+    # 10.3.1
+    if self.isAttributiveAdjective():
       h = self.getHead()
-      if h.has('Number','Sing'):
-        if h.has('Case','Gen') and h.has('Gender','Masc'):
-          return [Constraint('Len', 'Adjective is lenited after genitive singular masculine noun')]
-        if h.has('Case','Nom') and h.has('Gender','Fem'):
-          return [Constraint('Len', 'Adjective is lenited after nominative singular feminine noun')]
-        if h.has('Case','Voc'):
-          return [Constraint('Len', 'Adjective is lenited after a vocative singular noun')]
+      # TODO: exception "saor in aisce", "cothrom le dáta", srl. 10.3.1.e1
+      # TODO: tuairisc réasúnta cuimsitheach... ADV blocks lenition?
+      #   or "cuma chomh socair" (train 2554)
+      # TODO: need ultimate head "príosúnaigh Bheilgeacha agus Fhrancacha"
+      # TODO: idir bheag agus mhór (not in CO... CB+corpus only)
+      # TODO: after beirt+gpl? CB+corpus
+      if h.has('Gender','Fem') and h.has('Number','Sing'):
+        if h.has('Case','Nom') or h.has('Case','Dat') or h.has('Case','Voc'):
+          return [Constraint('Len', '10.3.1.a: Adjective is lenited after a feminine noun in the nominative, dative, or vocative singular')]
+      elif h.has('Gender','Masc') and h.has('Number','Sing'):
+        if h.has('Case','Gen') or h.has('Case','Voc'):
+          return [Constraint('Len', '10.3.1.b: Adjective is lenited after genitive or vocative singular masculine noun')]
       elif h.has('Number','Plur') and h.has('Case','Nom') and \
-           h.hasSlenderFinalConsonant() and h['lemma'].lower()!='caora':
-        return [Constraint('Len', 'Adjective is lenited after a nominative plural noun ending in a slender consonant')]
-    return []
+           h.hasSlenderFinalConsonant():
+        if h['lemma'].lower()=='caora':
+          return [Constraint('!Len', '10.3.1.c.e1: Do not lenite adjectives after “caoirigh”')]
+        else:
+          return [Constraint('Len', '10.3.1.c: Adjective is lenited after a nominative plural noun ending in a slender consonant')]
+      hpr = h.getPredecessor()
+      if hpr!=None:
+        if h.has('Number','Sing'):
+          if re.search(r'^dh?á$', hpr['token'].lower()):
+            return [Constraint('Len', '10.3.1.d.i: Adjective is lenited after a noun preceded by “dá” or “dhá”')]
+          if hpr.is3Thru6() or hpr.is7Thru10():
+            return [Constraint('Len', '10.3.1.d.ii: Adjective is lenited after a noun preceded by numbers 3–10')]
+        if re.search('^g?ch?inn$',h['token'].lower()): # chinn itself an error
+          if hpr.is3Thru6() or hpr.is7Thru10():
+            return [Constraint('Len', '10.3.1.d.iii: Adjective is lenited after plural noun “cinn” preceded by numbers 3–10')]
+      if h.isInDativePP() and h.has('Gender','Masc') and h.has('Number','Sing'):
+        return [Constraint('Len|!Len', '10.3.1.e: Lenition is optional adjectives following masculine nouns in the dative')]
+    # 10.3.3 dhá agus dháréag... tagged as NUM and NOUN resp in UD (see FGB)
+    # 10.3.4 déag agus fichead... tagged as NOUN in UD
+    # 10.3.5 in compounds (ollmhór, etc.)
+    # 10.3.6 After copula:
+    pr = self.getPredecessor()
+    if pr!=None and pr.isCopula() and (pr.has('Tense','Past') or pr.has('Mood','Cnd')):
+      return [Constraint('Len', '10.3.6: Adjective is lenited after past or conditional copula')]
+    return [Constraint('!Len', '10.3: Not sure why this adjective is lenited')]
 
   def predictNounLenition(self):
     if not self.isLenitable():
