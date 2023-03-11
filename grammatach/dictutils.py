@@ -42,8 +42,8 @@ class UDDictionary:
     if not self._words:
       return ''
     surf = tok['token']
-    if tok['lemma'].islower():
-      surf = tok.toLower(surf)
+    if tok['lemma'].islower() and not surf.islower():
+      surf = self.lowerToken()
     if tok['upos'] in ['PROPN', 'PUNCT', 'SYM', 'X']:
       return ''
     if tok['upos']=='NUM' and re.search('[0-9]',surf):

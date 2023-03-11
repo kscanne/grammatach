@@ -67,16 +67,15 @@ class GAToken(GoidelicToken):
   ####################### BOOLEAN METHODS ##########################
 
   # ok on Foreign=Yes b/c of gd words
-  # BUG: lú/beag, measa/olc, ... others?
   def isLenitable(self):
-    return re.match(r'([bcdfgmpt]|s[lnraeiouáéíóú])', self['lemma'], flags=re.IGNORECASE) and self['token'][0].lower() != 'r'
+    return re.match(r'([bcdfgmpt]|sh?[lnraeiouáéíóú])', self['token'], flags=re.IGNORECASE)
 
   # ok on Foreign=Yes b/c of gd words
   def isLenited(self):
     return re.match(r'([bcdfgmpt]h[^f]|sh[lnraeiouáéíóú])', self['token'], flags=re.IGNORECASE) and re.match(r'(.[^h]|bheith)', self['lemma'], flags=re.IGNORECASE)
 
   def isEclipsable(self):
-    return (self.isEclipsed() or re.match(r'[aeiouáéíóúbcdfgpt]', self['token'], flags=re.IGNORECASE))
+    return re.match(r'[aeiouáéíóúbcdfgpt]', self.demutatedToken(), flags=re.IGNORECASE)
 
   # permits mBriathar, MBRIATHAR, but not Mbriathar (to avoid "Ndugi", etc.)
   # allowed on Foreign=Yes too (ón bpier, ón dTower)
@@ -373,7 +372,7 @@ class GAToken(GoidelicToken):
 
   def predictAdjectiveLenition(self):
     if not self.isLenitable():
-      return [Constraint('!Len', '10.3: Cannot lenite an unlenitable consonant')]
+      return [Constraint('!Len', '10.3: Cannot lenite an unlenitable letter')]
     # 10.3.1
     if self.isAttributiveAdjective():
       h = self.getHead()
@@ -418,7 +417,7 @@ class GAToken(GoidelicToken):
 
   def predictNounLenition(self):
     if not self.isLenitable():
-      return [Constraint('!Len', 'Cannot lenite an unlenitable consonant')]
+      return [Constraint('!Len', 'Cannot lenite an unlenitable letter')]
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
 
@@ -588,7 +587,7 @@ class GAToken(GoidelicToken):
 
   def predictVerbLenition(self):
     if not self.isLenitable():
-      return [Constraint('!Len', 'Cannot lenite an unlenitable consonant')]
+      return [Constraint('!Len', 'Cannot lenite an unlenitable letter')]
     if self.isLenitedPastVerbContext():
       return [Constraint('Len', 'This past tense verb must be lenited')]
     if self.has('Aspect','Imp') and self.has('Tense','Past') and self['lemma'] != 'abair':
@@ -1242,8 +1241,25 @@ class GAToken(GoidelicToken):
 
   ########################################################################
 
-  def toLower(self, s):
+  def lowerToken(self):
+    s = self['token']
     if len(s) > 1 and (s[0]=='t' or s[0]=='n') and s[1] in 'AEIOUÁÉÍÓÚ':
       return s[0]+'-'+s[1:].lower()
     else:
       return s.lower()
+
+  def demutatedToken(self):
+    s = self['token']
+    if s[:2] in ['n-','t-']:
+      return s[2:]
+    if re.match('[nt][AEIOUÁÉÍÓÚ]',s):
+      return s[1:]
+    if re.match('h[aeiouáéíóú]',s,flags=re.IGNORECASE) and self.hasInitialVowel():
+      return s[1:]
+    if re.match('bhf',s,flags=re.IGNORECASE):
+      return s[2:]
+    if re.match('(mb|gc|n[dg]|bp|ts|dt)',s,flags=re.IGNORECASE):
+      return s[1:]
+    if re.match('[bcdfgmpst]h',s,flags=re.IGNORECASE):
+      return s[0]+s[2:]
+    return s

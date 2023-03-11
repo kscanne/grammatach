@@ -170,8 +170,7 @@ class UDToken:
       return ans
 
   # overridden for Irish (tAcht -> t-acht), potentially others
-  # ignores self! just a helper function
-  def toLower(self, s):
-    return s.lower()
+  def lowerToken(self):
+    return self['token'].lower()
 
   __repr__ = __str__
