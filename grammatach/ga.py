@@ -192,20 +192,16 @@ class GAToken(GoidelicToken):
   def anyDependentDefiniteArticle(self):
     return any(t.has('PronType','Art') for t in self.getDependents())
 
-  def isLenitedPastVerbContext(self):
-    pers = self['Person']
-    pers = 3 if pers==None else int(pers[0])
-    lemma = self['lemma']
-    return self.has('Tense','Past') and \
-           ((pers==0 and lemma in ['bí','clois','feic','tar','téigh']) or \
-            (pers>0 and lemma not in ['abair','faigh']))
-
-  # verbal particles that lenite following verb, excepting
-  # past tense version like gur, murar, etc. since those verbs
-  # are already lenited anyway
-  # ní, níor, gur, nár, má, murar, sular, ar, cár, a (direct rel)
-  def isLenitingParticle(self):
-    return False
+  # verbal particles that lenite following verb as in C.O. 10.4.2
+  def isLenitingVerbalParticle(self):
+    t = self['token'].lower()
+    # handle "cha"?
+    if t not in ['ní',"n'"] and t[-1]!='r':
+      return False
+    return (self['upos']=='PART' and self.has('PartType','Vb')) or \
+           (self['upos']=='PART' and t=='nár') or \
+           (self['upos']=='ADV' and t=='cár') or \
+           (self['upos']=='SCONJ' and t in ['munar','murar','sarar','sular'])
 
   # a, ina, lena, etc. but *not* past tense ar, inar, lenar, etc.
   # Also includes the PRON case: "sin a bhfuil agam"; note we can't use
@@ -334,7 +330,7 @@ class GAToken(GoidelicToken):
         return [Constraint('Ecl|Len', '10.6.4.b: Can be eclipsed in set phrase')]
     if prToken=='dar' and self['lemma'] in ['dóigh']:
       return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
-    if re.search(r'^d[aá]r$', prToken) and re.search(r'^g?ch?ionn$', self['token'].lower()):
+    if re.match('d[aá]r$', prToken) and self.demutatedToken().lower()=='cionn':
       return [Constraint('Ecl', '10.6.4.b: Should be eclipsed in set phrase')]
     if prToken=='fá' and pr['upos']=='ADP' and self['lemma']=='taobh':
       return [Constraint('Ecl|Len', '10.6.4.b: Can be eclipsed in set phrase')]
@@ -401,7 +397,7 @@ class GAToken(GoidelicToken):
             return [Constraint('Len', '10.3.1.d.i: Adjective is lenited after a noun preceded by “dá” or “dhá”')]
           if hpr.is3Thru6() or hpr.is7Thru10():
             return [Constraint('Len', '10.3.1.d.ii: Adjective is lenited after a noun preceded by numbers 3–10')]
-        if re.search('^g?ch?inn$',h['token'].lower()): # chinn itself an error
+        if h.demutatedToken().lower()=='cinn': # "chinn" itself an error
           if hpr.is3Thru6() or hpr.is7Thru10():
             return [Constraint('Len', '10.3.1.d.iii: Adjective is lenited after plural noun “cinn” preceded by numbers 3–10')]
       if h.isInDativePP() and h.has('Gender','Masc') and h.has('Number','Sing'):
@@ -585,28 +581,64 @@ class GAToken(GoidelicToken):
 
     return [Constraint('!Len','10.2: Not sure why this noun is lenited')]
 
-  def predictVerbLenition(self):
+  # TODO: need to handle initial m,s in eclipsed context too :( :(
+  def predictVerbLenition(self, eclipsisConstraints):
     if not self.isLenitable():
       return [Constraint('!Len', 'Cannot lenite an unlenitable letter')]
-    if self.isLenitedPastVerbContext():
-      return [Constraint('Len', 'This past tense verb must be lenited')]
-    if self.has('Aspect','Imp') and self.has('Tense','Past') and self['lemma'] != 'abair':
-      return [Constraint('Len', 'Imperfect verb must be lenited')]
-    if self.has('Mood','Cnd') and self['lemma'] != 'abair':
-      return [Constraint('Len', 'Conditional verb must be lenited')]
-    if self.getPredecessor().isLenitingParticle():
-      return [Constraint('Len', 'Verb is lenited after this verbal particle')]
-    return []
+    if any(c.isSatisfied(['Ecl']) for c in eclipsisConstraints):
+      return [Constraint('!Len', 'Should not lenite in an eclipsis context')]
+    lemma = self['lemma']
+    if lemma=='abair':
+      return [Constraint('!Len', '10.4.2.b: Forms of the verb “abair” are never lenited')]
+    if lemma=='bí' and self['token'][0]=='t':
+      return [Constraint('!Len', '10.4: Do not lenite “tá”, “táimid”, etc.')]
+    if self.has('Tense','Past') and self.has('Mood','Ind'):
+      if self.has('Person','0'):
+        if lemma in ['bí','clois','feic','tar','téigh']:
+          return [Constraint('Len', '10.4.1.i.e1: Past autonomous verbs “bhíothas”, “chonacthas”, “chualathas”, “chuathas”, “thángthas” must be lenited')]
+        else:
+          return [Constraint('!Len', '10.4.1.i: Past autonomous verbs are normally not lenited')]
+      else:
+        if lemma=='faigh':  # abair handled above
+          return [Constraint('!Len', '10.4.1.ii: Never lenite past tense forms of “faigh”')]
+        else:
+          return [Constraint('Len', '10.4.1.a: This past tense verb should be lenited')]
+    if self.has('Aspect','Imp') and self.has('Tense','Past'):
+      return [Constraint('Len', '10.4.1.a: This imperfect verb should be lenited')]
+    if self.has('Mood','Cnd'):
+      return [Constraint('Len', '10.4.1.a: This conditional verb should be lenited')]
+    pr = self.getPredecessor()
+    if pr==None:
+      return [Constraint('!Len', '10.4: This verb could only be lenited by a preceding particle')]
+    # also "do" e.g. train line 1467?
+    if pr['lemma']=='a' and pr['upos']=='PART' and pr.has('Form','Direct'):
+      return [Constraint('Len', '10.4.1.b+c: Lenite after the direct relative particle “a”')]
+    if pr['lemma'] in ['má','ó'] and pr['upos']=='SCONJ' and not pr.has('VerbForm','Cop'):
+      return [Constraint('Len', '10.4.1.b: Lenite after the conjunction “má” or “ó”')]
+    if pr.isLenitingVerbalParticle():
+      return [Constraint('Len', '10.4.2: Verb is lenited after this verbal particle')]
+    return [Constraint('!Len','10.2: Not sure why this noun is lenited')]
 
   def predictAdjectivePrefixH(self):
     if not self.admitsPrefixH():
-      return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
+      return [Constraint('!HPref', '10.12: Can only have a prefix h before initial vowel')]
     pr = self.getPredecessor()
+    if pr==None:
+      return [Constraint('!HPref', '10.12: Cannot have a prefix h on an adjective at the start of a sentence')]
     prToken = pr['token'].lower()
-    if prToken in ['chomh','go']:
-      return [Constraint('HPref', 'Adjective should have a prefix h')]
+    if prToken=='chomh':
+      return [Constraint('HPref', '10.12.1: Adjective should have a prefix h after “chomh”')]
+    if prToken=='go' and pr.has('PartType','Ad'):
+      return [Constraint('HPref', '10.12.1: Adjective should have a prefix h after “go”')]
+    if prToken=='ní' and pr['upos']=='AUX':
+      # ní haon is NUM
+      if self['lemma'] in ['amháin', 'annamh', 'eagal', 'ionann', 'iondúil', 'oircheas']:
+        return [Constraint('HPref', '10.12.2.e1: Certain adjectives should have a prefix h after “ní”')]
+      else:
+        return [Constraint('!HPref', '10.12.2: Most adjectives do not take a prefix h after “ní”')]
+    # "le haon" handled in predictFormDET
     # a haon, a hocht handled in predictOtherPrefixH
-    return []
+    return [Constraint('!HPref', '10.12.2: Not sure why this adjective has a prefix h')]
 
   # a (her), a dhá, á (her), cá, go, le, na (gsf), na (common pl)
   # Ó patronym, ordinals except chéad, and trí/ceithre/sé+uaire
@@ -642,10 +674,9 @@ class GAToken(GoidelicToken):
     if not self.admitsPrefixH():
       return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
     pr = self.getPredecessor()
-    prToken = pr['token'].lower()
-    if prToken=='ná' and pr.has('Mood','Imp'):
-      return [Constraint('HPref', 'Should have prefix h after “ná”')]
-    return []
+    if pr!=None and pr['token'].lower()=='ná' and pr.has('Mood','Imp'):
+      return [Constraint('HPref', '10.14.1: Should have prefix h after “ná”')]
+    return [Constraint('!HPref', '10.14: Not sure why this verb has a prefix h')]
 
   def predictOtherPrefixH(self):
     if not self.admitsPrefixH():
@@ -765,6 +796,7 @@ class GAToken(GoidelicToken):
       return [Constraint('None', 'Prepositions usually do not have a Form')]
 
   # just in one set phrase; get rid of fixed or retag components?
+  # TODO: ní hamhlaidh  10.12.2?
   def predictFormADV(self):
     if self['lemma']=='bheith' and self['deprel']=='fixed' and \
          self.getHead()['lemma']=='thar':
@@ -779,7 +811,7 @@ class GAToken(GoidelicToken):
       ans.append(Constraint('Ecl', 'Should be eclipsed by preceding particle'))
     return ans
 
-  # Ecl, Len, HPref, e.g. i ngach, chuile, haon
+  # Ecl, Len, HPref, e.g. i ngach, chuile, haon (10.12.1)
   def predictFormDET(self):
     ans = []
     if self.getPredecessor()['token'].lower()=='i' and self['lemma']=='gach':
@@ -813,7 +845,7 @@ class GAToken(GoidelicToken):
       ans.append(Constraint('Direct|Indirect', 'Relative particles must have Form feature'))
     return ans
 
-  # Len, HPref, and 1x VF ("cérbh")
+  # Len, HPref (10.13 TODO), and 1x VF ("cérbh")
   def predictFormPRON(self):
     ans = self.predictVowelForm()
     return ans
@@ -829,11 +861,11 @@ class GAToken(GoidelicToken):
 
   # Ecl, Len, HPref, Emp, plus some with Direct (atá + relative forms)
   def predictFormVERB(self):
-    ans = self.predictEmphasis()
+    ans = self.predictVerbEclipsis()
+    ans.extend(self.predictVerbLenition(ans))
+    ans.extend(self.predictEmphasis())
     if self.has('PronType','Rel') and re.match(r'at[aá]',self['token'].lower()):
       ans.append(Constraint('Direct', 'Anything resembling atá should be have direct relative feature Form=Direct'))
-    ans.extend(self.predictVerbEclipsis())
-    ans.extend(self.predictVerbLenition())
     ans.extend(self.predictVerbPrefixH())
     return ans
 
