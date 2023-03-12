@@ -619,6 +619,7 @@ class GAToken(GoidelicToken):
       return [Constraint('Len', '10.4.2: Verb is lenited after this verbal particle')]
     return [Constraint('!Len','10.2: Not sure why this noun is lenited')]
 
+  # TODO: ní haitheanta do (10.11.8.b)
   def predictAdjectivePrefixH(self):
     if not self.admitsPrefixH():
       return [Constraint('!HPref', '10.12: Can only have a prefix h before initial vowel')]
@@ -640,35 +641,51 @@ class GAToken(GoidelicToken):
     # a haon, a hocht handled in predictOtherPrefixH
     return [Constraint('!HPref', '10.12.2: Not sure why this adjective has a prefix h')]
 
-  # a (her), a dhá, á (her), cá, go, le, na (gsf), na (common pl)
-  # Ó patronym, ordinals except chéad, and trí/ceithre/sé+uaire
   def predictNounPrefixH(self):
     if not self.admitsPrefixH():
       return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
     pr = self.getPredecessor()
+    if pr==None:
+      return [Constraint('!HPref', 'Cannot have a prefix h at the start of a sentence')]
     prToken = pr['token'].lower()
-    if prToken=='ó' and pr.has('PartType','Pat'):
-      return [Constraint('HPref', 'Surnames should have prefix h after “Ó”')]
-    if pr['lemma']=='Dé':
-      return [Constraint('HPref', 'Should have prefix h after “Dé”')]
-    if prToken in ['cá','go','le']:
-      return [Constraint('HPref', 'Should have prefix h')]
-    if pr.has('Poss','Yes') and pr.has('Gender','Fem'):
-      return [Constraint('HPref', 'Should have prefix h following feminine possessive')]
-    if prToken=='dhá' and pr.getPredecessor().has('Poss','Yes') and \
-          pr.getPredecessor().has('Gender','Fem'):
-      return [Constraint('HPref','Should have prefix h after feminine possessive + dhá')]
-    if pr.has('NumType','Ord') and pr['lemma']!='céad':
-      return [Constraint('HPref', 'Should have prefix h following an ordinal')]
     if prToken=='na' and self.has('Gender','Fem') and \
           self.has('Case','Gen') and self.has('Number','Sing'):
-      return [Constraint('HPref', 'Should have prefix h following an ordinal')]
+      return [Constraint('HPref', '10.11.1.a: Should have prefix h following “na” in the genitive')]
     if prToken in ['na','sna'] and self.has('Case','Nom') and \
           self.has('Number','Plur'):
-      return [Constraint('HPref', 'Should have prefix h following “na”')]
+      return [Constraint('HPref', '10.11.1.b: Should have prefix h following plural “na” or “sna”')]
+    if pr.has('NumType','Ord') and pr['lemma']!='céad':
+      return [Constraint('HPref', '10.11.2.a: Should have prefix h following an ordinal')]
+    if pr.is3Thru6() and self.demutatedToken().lower()=='uaire':
+      return [Constraint('HPref', '10.11.2.b: Should have prefix h on “uaire” following numbers 3-6')]
+    if prToken in ['go','le'] and pr['upos']=='ADP':
+      return [Constraint('HPref', '10.11.3: Should have prefix h after preposition “go” or “le”')]
+    if prToken=='cá' and pr['upos']=='ADV':
+      return [Constraint('HPref', '10.11.4: Should have prefix h following interrogative “cá”')]
+    if prToken=='ó' and pr.has('PartType','Pat'):
+      return [Constraint('HPref', '10.11.5: Surnames should have prefix h after “Ó”')]
+    if pr['lemma']=='Dé' and self['lemma']=='Aoine':
+      return [Constraint('HPref', '10.11.6: Should have prefix h in phrase “Dé hAoine”')]
+    if pr.has('Poss','Yes') and pr.has('Gender','Fem'):
+      return [Constraint('HPref', '10.11.7: Should have prefix h following feminine possessive')]
+    if prToken=='dhá':
+      prpr = pr.getPredecessor()
+      if prpr!=None:
+        if prpr.has('Poss','Yes') and prpr.has('Gender','Fem'):
+          return [Constraint('HPref','10.11.7: Should have prefix h after feminine possessive + dhá')]
+    if prToken=='ní' and pr['upos']=='AUX':
+      if self['lemma'] in ['áibhéil','ionadh','iontas','ualach']:
+        return [Constraint('HPref','10.11.8.a: Certain nouns get a prefix h after copula “ní”')]
+      if self['lemma'] in ['áil','éadáil']:
+        if any(t['lemma']=='le' for t in self.getDependents()):
+          return [Constraint('HPref','10.11.8.b: There is a prefix h after “ní” in certain set copular phrases')]
+      if self['lemma'] in ['acmhainn','aithnid','ealaín','éigean','eol']:
+        if any(t['lemma']=='do' for t in self.getDependents()):
+          return [Constraint('HPref','10.11.8.b: There is a prefix h after “ní” in certain set copular phrases')]
+      # TODO: 10.11.8.c two set phrases
     if prToken=='de' and self['lemma']=='Íde':
       return [Constraint('HPref', 'Should have prefix h in “de hÍde”')]
-    return []
+    return [Constraint('!HPref', '10.11: Not sure why this noun has a prefix h')]
 
   def predictVerbPrefixH(self):
     if not self.admitsPrefixH():
@@ -691,7 +708,7 @@ class GAToken(GoidelicToken):
     if self['deprel']=='fixed' and prToken=='le' and \
           self['token'].lower()=='hais':
       return [Constraint('HPref', 'Should have prefix h in set phrase')]
-    return []
+    return [Constraint('!HPref', 'Not sure why this word has a prefix h')]
 
   def predictEmphasis(self):
     # TODO: draw on lexicon to make iff prediction of Emp
