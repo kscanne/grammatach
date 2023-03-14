@@ -109,8 +109,10 @@ class GVToken(GoidelicToken):
 
   # TODO: PM p.21
   def predictNounEclipsis(self):
-    ans = super().predictNounEclipsis()
-    return ans
+    pr = self.getPredecessor()
+    if pr.isPluralPossessive():
+      return [Constraint('Ecl','Should be eclipsed by preceding possessive')]
+    return []
 
   def predictNounHPref(self):
     return []
