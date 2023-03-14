@@ -216,3 +216,19 @@ feminineGroups = frozenset([
   'scéim',
   'seirbhís'
 ])
+
+prepositionsWithArticle = frozenset([
+  'den',
+  'dena',
+  'don',
+  'dosna',
+  'fán',
+  'faoin',
+  'fén',
+  'ins',
+  'insa',
+  'ón',
+  'sa',
+  'san',
+  'sna'
+])

@@ -1037,7 +1037,7 @@ class GAToken(GoidelicToken):
   def predictNounTypeNOUN(self):
     # NB nouns don't take Slender/NotSlender feature, only their dependent adjs
     if self.has('Number','Plur') and self.has('Case','Gen'):
-      # distinction is a lexical thing; almost true that you could 
+      # distinction is a lexical thing; almost true that you could
       # compare demutatedToken with lemma, but there are exceptions b/c of
       # non-standard tokens, typos, and examples like "ealaíon"
       return [Constraint('Strong|Weak', 'Genitive plural nouns need NounType=Strong or Weak')]
@@ -1262,44 +1262,64 @@ class GAToken(GoidelicToken):
     if re.match('(dá|(faoi|i|le|ó|trí)nar?)$',tok) and \
         not self.has('Poss','Yes') and self.getDeprel() != 'case':
       return [Constraint('Rel', 'Appears to be combined preposition with “a” (all that) and need PronType=Rel feature')]
-    # no need to be comprehensive here, caught by lexicon
-    if re.search('(s[ae]|ne|se?an)$', tok):
-      return [Constraint('Art|Emp|None', 'This could be an emphatic form')]
-    if self.getDeprel()=='case':
-      return [Constraint('Art|None', 'This could be PronType=Art')]
-    return []
+    if tok=='insa':  # do this first since it looks emphatic by regex
+      return [Constraint('Art', 'The word “insa” takes PronType=Art')]
+    if re.search('..(s[ae]|ne|se?an)$', tok):
+      return [Constraint('Emp', 'This appears to be an emphatic form, requiring PronType=Emp')]
+    if tok in gadata.prepositionsWithArticle:
+      return [Constraint('Art', 'This word should have PronType=Art')]
+    return [Constraint('None', 'Not sure why this has feature PronType')]
 
   def predictPronTypeADV(self):
+    # includes surface form "cár"
     if self['lemma'] in ['cá', 'conas']:
       return [Constraint('Int', 'These interrogatives require PronType=Int')]
-    return []
+    return [Constraint('None', 'Not sure why this adverb has feature PronType')]
 
   def predictPronTypeAUX(self):
+    # Rel or Dem (rare)
     if self['token'].lower() in ['seo','sin']:
       return [Constraint('Dem', 'Feature PronType=Dem is required here')]
     else:
       return [Constraint('Rel|None', 'Some copulas are PronType=Rel')]
 
+  # Art, Dem, Ind, and possessives+gach don't have this feature at all
   def predictPronTypeDET(self):
-    if not self.has('Poss','Yes'):
-      if self['lemma']=='an':
-        return [Constraint('Art', 'Definite article requires PronType=Art')]
-      if self['lemma'] in ['eile','s','seo','sin','siúd','úd']:
-        return [Constraint('Dem', 'Demonstratives require PronType=Dem')]
-      if self['lemma'] in ['aon','cibé','uile']:
-        return [Constraint('Ind', 'Indef. determiner requires PronType=Ind')]
-    return []
+    if self['lemma']=='an':
+      return [Constraint('Art', 'Definite article requires PronType=Art')]
+    if self['lemma'] in ['eile','s','seo','sin','siúd','úd']:
+      return [Constraint('Dem', 'Demonstratives require PronType=Dem')]
+    if self['lemma'] in ['aon','cibé','uile']:
+      return [Constraint('Ind', 'Indef. determiner requires PronType=Ind')]
+    if self.has('Poss','Yes') or self.has('Definite','Def') or \
+       self.has('Foreign','Yes'):
+      return [Constraint('None', 'Should not have feature PronType')]
+    return [Constraint('ERR', 'Unrecognized determiner; unsure about the PronType feature')]
 
+  # Rel only
   def predictPronTypePART(self):
     # lemmas: a, ar, do, faoi, i, le, nach, nár, trí
     if self.has('Form','Direct') or self.has('Form','Indirect') or \
         self.has('PartType','Cop'):
       return [Constraint('Rel', 'Relativizing particles must have feature PronType=Rel')]
-    return []
+    return [Constraint('None', 'Not sure why this particle has feature PronType')]
 
+  # possible values: Dem, Int, Emp, Rel, Ind (or none)
   def predictPronTypePRON(self):
-    # values: Dem, Int, Emp, Rel, Ind   TODO
-    return [Constraint('Dem|Emp|Ind|Int|Rel|None', 'placeholder...')]
+    # lemma of emphatics is a bit inconsistent at present; use token
+    if self['token'].lower() in ['eisean', 'iadsan', 'ise', 'mise', 'muide', 'muidne', 'seisean', 'siadsan', 'sinne', 'sise', 'tusa']:
+      return [Constraint('Emp', 'Emphatic pronouns require PronType=Emp')]
+    if self['lemma'] in ['é', 'ea', 'féin', 'í', 'iad', 'mé', 'muid', 'sé', 'séard', 'sí', 'siad', 'sibh', 'sinn', 'tú']:
+      return [Constraint('None', 'Basic personal pronouns do not take the PronType feature')]
+    if self['lemma'] in ['cad', 'cad_é', 'cé', 'céard']:
+      return [Constraint('Int', 'Interrogative pronouns require PronType=Int')]
+    if self['lemma'] in ['iúd', 'seo', 'sin', 'siúd']:
+      return [Constraint('Dem', 'Demonstrative pronouns require PronType=Dem')]
+    if self['lemma'] in ['a', 'ar']:
+      return [Constraint('Rel', 'Relativizing pronouns require PronType=Rel')]
+    if self['lemma'] in ['ceachtar', 'cibé', 'pé']:
+      return [Constraint('Ind', 'Indefinite pronouns require PronType=Ind')]
+    return [Constraint('ERR', 'Unrecognized pronoun; unsure of PronType feature in this case')]
 
   def predictPronTypeVERB(self):
     tok = self['token'].lower()
@@ -1307,18 +1327,18 @@ class GAToken(GoidelicToken):
       return [Constraint('Rel', 'Forms like “atá” require the feature PronType=Rel')]
     if re.search('s$',tok):
       return [Constraint('Rel|None', 'Verb forms ending in s are sometimes relative which would require PronType=Rel')]
-    return []
+    return [Constraint('None', 'Not sure why this verb has feature PronType')]
 
   def predictReflexPRON(self):
     if self['lemma']=='féin':
       return [Constraint('Yes', 'The word “féin” needs feature Reflex=Yes')]
-    return []
+    return [Constraint('None', 'Only the lemma “féin” takes the feature Reflex=Yes')]
 
   # Sinn Féin
   def predictReflexPROPN(self):
     if self['lemma']=='Féin':
       return [Constraint('Yes', 'The word “Féin” in “Sinn Féin” needs feature Reflex=Yes')]
-    return []
+    return [Constraint('None', '“Féin” in “Sinn Féin” is the only proper noun with the feature Reflex=Yes')]
 
   def predictTenseADV(self):
     if self['token'].lower()=='cár':
