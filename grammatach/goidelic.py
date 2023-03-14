@@ -27,20 +27,13 @@ class GoidelicToken(UDToken):
 
  #################### Pan-Gaelic feature predictions ##################
 
-  # isEclipsable already checked in child class
-  def predictNounEclipsis(self):
-    pr = self.getPredecessor()
-    if pr.isPluralPossessive():
-      return [Constraint('Ecl','Should be eclipsed by preceding possessive')]
-    return []
-
   def predictCaseADJ(self):
     if self.isAttributiveAdjective():
       head = self.getUltimateHead()
       if head['Case']!=None:
         theCase = head['Case'][0]
         return [Constraint(theCase, 'Adjective case should match noun it modifies')]
-    return []
+    return [Constraint('None', 'Only attributive adjectives get the Case feature')]
 
   def predictGenderADJ(self):
     if self.isAttributiveAdjective():
@@ -48,14 +41,14 @@ class GoidelicToken(UDToken):
       if head['Gender']!=None:
         theGender = head['Gender'][0]
         return [Constraint(theGender, 'Adjective gender should match noun it modifies')]
-    return []
+    return [Constraint('None', 'Only attributive adjectives get the Gender feature')]
 
   def predictTenseVERB(self):
     if self.has('Mood','Cnd') or self.has('Mood','Imp') or \
          self.has('Foreign','Yes'):
-      return []
-    return [Constraint('Fut|Past|Pres', 'Verbs that are not conditional, imperfect, or foreign must be past, present, or future tense')]
-    return []
+      return [Constraint('None', 'Conditional, imperfect, and foreign verbs should not have a Tense feature')]
+    else:
+      return [Constraint('Fut|Past|Pres', 'Verbs that are not conditional, imperfect, or foreign must be past, present, or future tense')]
 
  ################### Methods requiring override in children ##################
 

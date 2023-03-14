@@ -956,11 +956,12 @@ class GAToken(GoidelicToken):
   def predictGenderADJ(self):
     return super().predictGenderADJ()
 
+  # only in non-standard combined forms
   def predictGenderAUX(self):
     mapping = {'sé': 'Masc', 'sí': 'Fem'}
     if self['token'].lower() in mapping:
       return [Constraint(mapping[self['token'].lower()], 'Combined copula requires correct Gender feature')]
-    return []
+    return [Constraint('None', 'Copula generally does not permit a Gender feature')]
 
   def predictGenderDET(self):
     if self.has('Number','Sing'):
@@ -971,12 +972,12 @@ class GAToken(GoidelicToken):
           return [Constraint('Fem', 'Article before genitive singular feminine noun must be marked for Gender')]
         if re.match("'?[Aa]", self['token']):
           return [Constraint('Masc', 'Article before genitive singular masculine noun must be marked for Gender')]
-    return []
+    return [Constraint('None', 'Not sure why this determiner has a Gender')]
 
   # could have a list of exceptions but doesn't add much value
   # since missing genders would be picked up by lexicon check
   def predictGenderNOUN(self):
-    return [Constraint('Fem|Masc|None', 'placeholder...')]
+    return [Constraint('Fem|Masc|None', 'Allow anything for now...')]
 
   def predictGenderPROPN(self):
     return self.predictGenderNOUN()
@@ -985,10 +986,22 @@ class GAToken(GoidelicToken):
     pronouns = {'é': 'Masc', 'eisean': 'Masc', 'í': 'Fem', 'ise': 'Fem', 'sé': 'Masc', 'seisean': 'Masc', 'sí': 'Fem', 'sise': 'Fem'}
     if self['lemma'] in pronouns:
       return [Constraint(pronouns[self['lemma']], 'Personal pronouns require correct Gender feature')]
-    return []
+    else:
+      return [Constraint('None', 'Not sure why this pronoun has a gender')]
 
   def predictMoodAUX(self):
-    return [Constraint('Cnd|Int|None', 'Copula can sometimes have Mood=Int or Mood=Cnd')]
+    tok = self.demutatedToken().lower()
+    if tok in ["b'", 'ba']:
+      if self.has('Tense','Past'):
+        return [Constraint('None', 'Past copula “ba” is not conditional')]
+      else:
+        return [Constraint('Cnd', 'Copula “ba”, if not past tense, is conditional')]
+    elif tok=='an':
+      return [Constraint('Int', 'Copula “an” is an interrogative')]
+    elif tok in ['ar', 'arbh', 'nach', 'nár', 'nárbh']:
+      return [Constraint('Int|None', 'Might or might not be an interrogative')]
+    else:
+      return [Constraint('None', 'Not sure why this copula has a Mood feature')]
 
   def predictMoodPART(self):
     head = self.getHead()
@@ -996,40 +1009,39 @@ class GAToken(GoidelicToken):
       return [Constraint('Imp', 'Negative imperative particle requires feature Mood=Imp')]
     if self['lemma'] in ['go', 'nár'] and head.has('Mood','Sub'):
       return [Constraint('Sub', 'Subjunctive particle requires feature Mood=Sub')]
-    return []
+    return [Constraint('None', 'Not sure why this particle has a Mood feature')]
 
   def predictMoodVERB(self):
     # distinguishing the moods is a lexical thing; handle with dict lookup
-    if not self.has('Aspect','Imp'):
+    if self.has('Aspect','Imp'):
+      return [Constraint('None', 'Imperfect verbs should not have a Mood')]
+    else:
       return [Constraint('Cnd|Imp|Ind|Int|Sub', 'All non-imperfect verbs must have the Mood feature')]
-    return []
 
+  # Strong|Weak|Slender|NotSlender
   def predictNounTypeADJ(self):
     # include deprel nmod here because of coordinations through gen. sing nouns
     if self.has('Number','Plur') and self.getDeprel() in ['amod','nmod']:
       head = self.getUltimateHead()
       if head.has('Case','Nom'):
         if head.hasSlenderFinalConsonant():
-          #if self['NounType']==None:
-          #  self.addFeature('NounType','Slender')
           return [Constraint('Slender', 'Plural adjective modifying noun with slender ending; needs NounType=Slender feature')]
         else:
-          #if self['NounType']==None:
-          #  self.addFeature('NounType','NotSlender')
           return [Constraint('NotSlender', 'Plural adjective modifying noun ending in broad consonant or vowel needs NounType=NotSlender feature')]
       elif head.has('Case','Gen'):
         if head['NounType']!=None:
           val = head['NounType'][0]
-          #if self['NounType']==None:
-          #  self.addFeature('NounType',val)
           return [Constraint(val, 'Plural adjective must have NounType=Strong or Weak matching the noun it modifies')]
-    return []
+    return [Constraint('None', 'Not sure why this adjective has a NounType')]
 
   def predictNounTypeNOUN(self):
     # NB nouns don't take Slender/NotSlender feature, only their dependent adjs
     if self.has('Number','Plur') and self.has('Case','Gen'):
+      # distinction is a lexical thing; almost true that you could 
+      # compare demutatedToken with lemma, but there are exceptions b/c of
+      # non-standard tokens, typos, and examples like "ealaíon"
       return [Constraint('Strong|Weak', 'Genitive plural nouns need NounType=Strong or Weak')]
-    return []
+    return [Constraint('None', 'Not sure why this noun has a NounType feature')]
 
   def predictNounTypePROPN(self):
     return self.predictNounTypeNOUN()
@@ -1037,9 +1049,10 @@ class GAToken(GoidelicToken):
   def predictNumberAUX(self):
     if self['token'].lower() in ['sé','sí']:
       return [Constraint('Sing', 'Combined copula requires Number feature')]
-    return []
+    else:
+      return [Constraint('None', 'Copula normally does not permit a Number feature')]
 
-  # TODO: beirt; does this generalize to Goidelic?
+  # TODO: beirt
   def predictNumberADJ(self):
     if self.isAttributiveAdjective():
       head = self.getUltimateHead()
@@ -1048,25 +1061,49 @@ class GAToken(GoidelicToken):
       if head['Number']!=None:
         theNumber = head['Number'][0]
         return [Constraint(theNumber, 'Adjective number should match noun it modifies')]
-    return []
+      else:
+        return [Constraint('None', 'Modified noun has no Number feature so this adjective should not either')]
+    else:
+      return [Constraint('None', 'Non-attributive adjectives do not take the Number feature')]
 
   def predictNumberADP(self):
-    return [Constraint('Sing|Plur|None', 'Some pronomials have Number feature')]
+    if self.has('PronType','Art'):
+      if re.search('na$', self['token'].lower()): # "sna" only std example
+        return [Constraint('Plur', 'Should be Number=Plur since combined with plural article')]
+      else:
+        return [Constraint('Sing', 'Should be Number=Sing since combined with singular article')]
+    if self.has('Poss','Yes'):
+      return [Constraint('Sing|Plur', 'All possessives should have a Number feature')]
+    if self['Person']!=None:
+      tok = self.deemphasizedToken().lower()
+      if re.search('(bh|[ií]nn$|[auú]b?$|leo$)', tok):
+        return [Constraint('Plur', 'Appears to be a plural pronomial so requires Number=Plur')]
+      else:
+        return [Constraint('Sing', 'Appears to be a singular pronomial so requires Number=Sing')]
+    return [Constraint('None', 'Not sure why this word has a Number feature')]
 
   def predictNumberDET(self):
     possessives = {'ár': 'Plur', 'bhur': 'Plur', 'do': 'Sing', 'mo': 'Sing'}
     if self['lemma'] in possessives:
       return [Constraint(str(possessives[self['lemma']]), 'Possessives should have the correct Number feature')]
     if self['lemma']=='an':
-      return [Constraint('Sing|Plur', 'Articles must have Number feature')]
+      if self['token'].lower() in ['an','a',"'n","a'","un"]:
+        return [Constraint('Sing', 'Singular article requires Number=Sing')]
+      else:
+        return [Constraint('Sing|Plur', 'Article “na” requires a Number feature, either singular or plural')]
     if self['lemma']=='a':
       return [Constraint('Sing|Plur', 'Possessive “a” must be annotated either singular or plural')]
-    return []
+    return [Constraint('None', 'Not sure why this determiner has a Number feature')]
 
   def predictNumberNOUN(self):
-    if self['Abbr']==None and self['Foreign']==None and self['VerbForm']==None:
-      return [Constraint('Sing|Plur', 'All nouns except verbal nouns should have a Number feature')]
-    return []
+    if self['Abbr']!=None:
+      return [Constraint('Sing|Plur|None', 'Abbreviations may or may not have a Number feature')]
+    elif self['Foreign']!=None:
+      return [Constraint('Sing|Plur|None', 'Foreign words may or may not have a Number feature')]
+    elif self['VerbForm']!=None:
+      return [Constraint('None', 'Verbal nouns cannot have a Number feature')]
+    else:
+      return [Constraint('Sing|Plur', 'All nouns except verbal nouns, abbreviations, and foreign words must have a Number feature')]
 
   def predictNumberPRON(self):
     # cén is Sing, but cé, céard have no Number
@@ -1074,20 +1111,22 @@ class GAToken(GoidelicToken):
       if self['token'].lower()=='cén':
         return [Constraint('Sing', 'Pronoun “cén” must be Number=Sing')]
       else:
-        return []
+        return [Constraint('None', 'Pronouns “cé” and “céard” should have no Number feature')]
     pronouns = {'é': 'Sing', 'ea': 'Sing', 'eisean': 'Sing', 'í': 'Sing', 'iad': 'Plur', 'ise': 'Sing', 'mé': 'Sing', 'mise': 'Sing', 'muid': 'Plur', 'sé': 'Sing', 'seisean': 'Sing', 'sí': 'Sing', 'siad': 'Plur', 'sibh': 'Plur', 'sinn': 'Plur', 'sise': 'Sing', 'tú': 'Sing', 'tusa': 'Sing'}
     if self['lemma'] in pronouns:
       return [Constraint(pronouns[self['lemma']], 'Pronouns should have the correct Number feature')]
-    return []
+    else:
+      return [Constraint('None', 'Not sure why this pronoun has a Number feature')]
 
   def predictNumberPROPN(self):
     return self.predictNumberNOUN()
 
   def predictNumberVERB(self):
     return [Constraint('Sing|Plur|None', 'Some verbs have Number feature')]
-    return []
 
   def predictNumTypeNUM(self):
+    # optional cases usually contain numbers or parens
+    # Card vs. Ord mostly detectable with token?
     return [Constraint('Card|Ord|None', 'Numbers have optional NumType feature')]
 
   def predictPartTypePART(self):
@@ -1125,28 +1164,37 @@ class GAToken(GoidelicToken):
       return [Constraint('Comp|Pat|Vb', 'The particle “ní” is one of these types')]
     if self['lemma']=='níos':
       return [Constraint('Comp', 'The particle “níos” needs PartType=Comp')]
-    return []
+    # indirect relativizers are the only PART tokens without a PartType
+    if self.has('Form', 'Indirect'):
+      return [Constraint('None', 'Indirect relativizers do not have a PartType feature')]
+    return [Constraint('None', 'Not sure why this has a PartType feature')]
 
   def predictPersonADP(self):
-    return [Constraint('0|1|2|3|None', 'Tokens tagged ADP sometimes have the Person feature')]
+    if self.has('Poss','Yes'):
+      # could add ár$ => 1, a$=>3, etc.
+      return [Constraint('1|2|3', 'All possessives should have a Person feature')]
+    if self['Number']!=None and not self.has('PronType','Art'):
+      # final m => 1, final t => 2, ann=>3, other final nn=>1, etc.?
+      return [Constraint('1|2|3', 'All pronomials should have a Person feature')]
+    return [Constraint('None', 'Not sure why this word has a Number feature')]
 
   def predictPersonAUX(self):
     if self['token'].lower() in ['sé','sí']:
       return [Constraint('3', 'Combined copula requires Person feature')]
-    return []
+    return [Constraint('None', 'Copula usually does not have a Person feature')]
 
   def predictPersonDET(self):
     if self.has('Poss','Yes'):
       possessives = { 'a': 3, 'ár': 1, 'bhur': 2, 'do': 2, 'mo': 1 }
       if self['lemma'] in possessives:
         return [Constraint(str(possessives[self['lemma']]), 'Possessives should have the correct Person feature')]
-    return []
+    return [Constraint('None', 'Not sure why this determiner has a Person feature')]
 
   def predictPersonPRON(self):
     pronouns = {'é': 3, 'ea': 3, 'eisean': 3, 'í': 3, 'iad': 3, 'ise': 3, 'mé': 1, 'mise': 1, 'muid': 1, 'sé': 3, 'seisean': 3, 'sí': 3, 'siad': 3, 'sibh': 2, 'sinn': 1, 'sise': 3, 'tú': 2, 'tusa': 2}
     if self['lemma'] in pronouns:
       return [Constraint(str(pronouns[self['lemma']]), 'Pronouns should have the correct Person feature')]
-    return []
+    return [Constraint('None', 'Not sure why this pronoun has a Person feature')]
 
   def predictPersonVERB(self):
     return [Constraint('0|1|2|3|None', 'Verbs sometimes have the Person feature')]
@@ -1154,33 +1202,39 @@ class GAToken(GoidelicToken):
   def predictPolarityAUX(self):
     if re.match('(n|cha)', self['token'].lower()):
       return [Constraint('Neg', 'Negative copula should have Polarity=Neg')]
-    return []
+    return [Constraint('None', 'Not sure why this copula has a Polarity feature')]
 
   def predictPolarityPART(self):
     if not self.has('PartType','Comp') and not self.has('PartType','Pat') and \
           re.match('(n[^-]|cha)', self['token'].lower()):
       return [Constraint('Neg', 'Negative particle should have Polarity=Neg')]
-    return []
+    return [Constraint('None', 'Not sure why this particle has a Polarity feature')]
 
   def predictPolarityVERB(self):
     pr = self.getPredecessor()
-    if re.match('níl',self['token'].lower()) or pr.has('Polarity','Neg'):
-      #self.addFeature('Polarity','Neg')
+    if re.match('níl',self['token'].lower()) or \
+        (pr!=None and pr.has('Polarity','Neg')):
       return [Constraint('Neg', 'Verb following negative particle must have Polarity=Neg feature')]
-    return []
+    return [Constraint('None', 'Not sure why this verb has a Polarity feature')]
 
   def predictPossADP(self):
     return [Constraint('Yes|None', 'ADP could have Poss=Yes')]
 
   def predictPossDET(self):
-    return [Constraint('Yes|None', 'DET could have Poss=Yes')]
+    if self['PronType']!=None:  # Art, Dem, Ind
+      return [Constraint('None', 'Determiner with a PronType cannot have Poss=Yes')]
+    if self.has('Definite','Def'): # gach, chuile, etc.
+      return [Constraint('None','Determiners like “gach” do not have Poss=Yes')]
+    if self.has('Foreign','Yes'):
+      return [Constraint('None','Foreign words do not have Poss=Yes')]
+    return [Constraint('Yes', 'This determiner should have Poss=Yes')]
 
-  # Usually case in PPs, but can be mark ("go dtí go mbeidh...")
+  # Deprel is Usually case in PPs, but can be mark ("go dtí go mbeidh...")
   def predictPrepFormADP(self):
     if self['deprel'] in ['case','mark'] and self['head']>self['index']+1 and \
           any(t['index']==self['index']+1 and t['upos']=='NOUN' and t['deprel']=='fixed' for t in self.getDependents()):
       return [Constraint('Cmpd', 'First part of compound preposition should have feature PrepForm=Cmpd')]
-    return []
+    return [Constraint('None', 'Does not appear to need PrepForm=Cmpd feature')]
 
   # second halves tagged NOUN as of April 2021
   # note the check that head of the ADP isn't "self"
@@ -1197,7 +1251,7 @@ class GAToken(GoidelicToken):
       if (cmpd in gadata.compoundPrepositions or cmpd == 'go dtí') and \
           any(t.isNominal() and t['deprel']=='nmod' and not t.isInPP() for t in self.getDependents()):
         return [Constraint('Cmpd', 'This should be fixed and PrepForm=Cmpd')]
-    return []
+    return [Constraint('None', 'Does not appear to need PrepForm=Cmpd feature')]
 
   def predictPronTypeADP(self):
     tok = self['token'].lower()
@@ -1374,3 +1428,13 @@ class GAToken(GoidelicToken):
     if re.match('[bcdfgmpst]h',s,flags=re.IGNORECASE):
       return s[0]+s[2:]
     return s
+
+  def deemphasizedToken(self):
+    s = self['token']
+    if self.has('Form', 'Emp') or self.has('PronType', 'Emp'):
+      if s.lower()[-3:]=='nne':
+        return s[:-1]   # againne -> againn, etc.
+      else:
+        return re.sub('-?[ns][ea]n?$', '', s, flags=re.IGNORECASE)
+    else:
+      return s
