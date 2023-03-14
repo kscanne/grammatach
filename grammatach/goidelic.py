@@ -18,7 +18,7 @@ class GoidelicToken(UDToken):
     head = self.getUltimateHead()
     # allow nmod: "saincheisteanna comhshaoil agus áitiula" 
     return self['upos']=='ADJ' and head.isNominal() and \
-           self.getDeprel() in ['amod', 'flat:name', 'nmod'] and \
+           self.getUltimateDeprel() in ['amod', 'flat:name', 'nmod'] and \
            self['index'] > head['index'] and \
            not self.has('Degree','Cmp') and not self.has('Degree','Sup')
 
