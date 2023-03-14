@@ -401,7 +401,7 @@ class GAToken(GoidelicToken):
           if hpr.is3Thru6() or hpr.is7Thru10():
             return [Constraint('Len', '10.3.1.d.iii: Adjective is lenited after plural noun “cinn” preceded by numbers 3–10')]
       if h.isInDativePP() and h.has('Gender','Masc') and h.has('Number','Sing'):
-        return [Constraint('Len|!Len', '10.3.1.e: Lenition is optional adjectives following masculine nouns in the dative')]
+        return [Constraint('Len|!Len', '10.3.1.e: Lenition is optional on adjectives following masculine nouns in the dative')]
     # 10.3.3 dhá agus dháréag... tagged as NUM and NOUN resp in UD (see FGB)
     # 10.3.4 déag agus fichead... tagged as NOUN in UD
     # 10.3.5 in compounds (ollmhór, etc.)
@@ -445,7 +445,7 @@ class GAToken(GoidelicToken):
         return [Constraint('Len','10.2.3.a: Always lenite after possessives mo, do, or singular masculine “a”')]
       if pr.has('Gender','Fem'):
         return [Constraint('!Len','10.2.3.a: Never lenite after feminine possessive')]
-    if pr['lemma'] in ['gach_uile', 'uile']:
+    if pr['lemma'] in ['gach_uile', 'uile'] and pr['head']==self['index']:
       return [Constraint('Len','10.2.3.b: Always lenite after the adjective “uile”')]
     if pr['lemma'] in ['aon', 'céad']:
       if self.hasInitialDental():
@@ -613,7 +613,7 @@ class GAToken(GoidelicToken):
     # also "do" e.g. train line 1467?
     if pr['lemma']=='a' and pr['upos']=='PART' and pr.has('Form','Direct'):
       return [Constraint('Len', '10.4.1.b+c: Lenite after the direct relative particle “a”')]
-    if pr['lemma'] in ['má','ó'] and pr['upos']=='SCONJ' and not pr.has('VerbForm','Cop'):
+    if pr['lemma'].lower() in ['má','ó'] and pr['upos']=='SCONJ' and not pr.has('VerbForm','Cop'):
       return [Constraint('Len', '10.4.1.b: Lenite after the conjunction “má” or “ó”')]
     if pr.isLenitingVerbalParticle():
       return [Constraint('Len', '10.4.2: Verb is lenited after this verbal particle')]
@@ -638,7 +638,7 @@ class GAToken(GoidelicToken):
       else:
         return [Constraint('!HPref', '10.12.2: Most adjectives do not take a prefix h after “ní”')]
     # "le haon" handled in predictFormDET
-    # a haon, a hocht handled in predictOtherPrefixH
+    # a haon, a hocht??
     return [Constraint('!HPref', '10.12.2: Not sure why this adjective has a prefix h')]
 
   def predictNounPrefixH(self):
@@ -654,10 +654,11 @@ class GAToken(GoidelicToken):
     if prToken in ['na','sna'] and self.has('Case','Nom') and \
           self.has('Number','Plur'):
       return [Constraint('HPref', '10.11.1.b: Should have prefix h following plural “na” or “sna”')]
-    if pr.has('NumType','Ord') and pr['lemma']!='céad':
+    if pr.has('NumType','Ord') and pr['head']==self['index'] and pr['lemma']!='céad':
       return [Constraint('HPref', '10.11.2.a: Should have prefix h following an ordinal')]
     if pr.is3Thru6() and self.demutatedToken().lower()=='uaire':
       return [Constraint('HPref', '10.11.2.b: Should have prefix h on “uaire” following numbers 3-6')]
+    # handles fixed "le hais" too
     if prToken in ['go','le'] and pr['upos']=='ADP':
       return [Constraint('HPref', '10.11.3: Should have prefix h after preposition “go” or “le”')]
     if prToken=='cá' and pr['upos']=='ADV':
@@ -694,21 +695,6 @@ class GAToken(GoidelicToken):
     if pr!=None and pr['token'].lower()=='ná' and pr.has('Mood','Imp'):
       return [Constraint('HPref', '10.14.1: Should have prefix h after “ná”')]
     return [Constraint('!HPref', '10.14: Not sure why this verb has a prefix h')]
-
-  def predictOtherPrefixH(self):
-    if not self.admitsPrefixH():
-      return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
-    pr = self.getPredecessor()
-    prToken = pr['token'].lower()
-    if self['upos']=='PRON' and prToken in ['cé','le','ní','pé']:
-      return [Constraint('HPref', 'Should have prefix h')]
-    if self['upos']=='NUM' and prToken == 'a' and pr.has('PartType','Num'):
-      return [Constraint('HPref', 'Number should have a prefix h')]
-    # annoying fixed ADPs
-    if self['deprel']=='fixed' and prToken=='le' and \
-          self['token'].lower()=='hais':
-      return [Constraint('HPref', 'Should have prefix h in set phrase')]
-    return [Constraint('!HPref', 'Not sure why this word has a prefix h')]
 
   def predictEmphasis(self):
     # TODO: draw on lexicon to make iff prediction of Emp
@@ -747,7 +733,7 @@ class GAToken(GoidelicToken):
 
   def predictCaseNOUN(self):
     return [Constraint('Nom|Gen|Dat|Voc|None', 'placeholder...')]
-    if self.getDeprel()=='vocative':
+    if self.getUltimateDeprel()=='vocative':
       return [Constraint('Voc', 'Should have feature Case=Voc')]
     # TODO: words with no case, Abbr, Foreign?
     #noCase = ['ann', 'céile', 'dála', 'dea', 'doh', '(e)amar', 'foláir', 'gach', 'go', 'leith', 'leor', 'márach', 'scan', 'scun', 'seach', 'sul', 'té', 'thuilleadh', 'tólamh', 'uile']
@@ -788,17 +774,17 @@ class GAToken(GoidelicToken):
       return [Constraint('Pos', 'Must be Degree=Pos at start of sentence')]
     prToken = pr['token'].lower()
     if pr['lemma'] in ['ba','níos'] and pr.has('PartType','Comp'):
-      return [Constraint('Cmp', 'Must be have Degree=Cmp after “níos” or “ba”'),
-              Constraint('Sup', 'Must be have Degree=Sup after “níos” or “ba”')]
+      return [Constraint('Cmp', 'Must have Degree=Cmp after “níos” or “ba”'),
+              Constraint('Sup', 'Must have Degree=Sup after “níos” or “ba”')]
     # TODO: really should be abstract noun following "a" — retag?
     if pr['lemma']=='a' and pr.has('PartType','Deg'):
-      return [Constraint('Cmp', 'Must be have Degree=Cmp after degree particle “a”'),
-              Constraint('Sup', 'Must be have Degree=Sup after degree particle “a”')]
+      return [Constraint('Cmp', 'Must have Degree=Cmp after degree particle “a”'),
+              Constraint('Sup', 'Must have Degree=Sup after degree particle “a”')]
     # "is" only other word preceding ADJ with Degree=Cmp,Sup; mixed tags
     if pr['lemma']=='is':
       if pr.has('PartType','Comp') or pr.has('PartType','Sup'):
-        return [Constraint('Cmp', 'Must be have Degree=Cmp after copula'),
-                Constraint('Sup', 'Must be have Degree=Sup after copula')]
+        return [Constraint('Cmp', 'Must have Degree=Cmp after copula'),
+                Constraint('Sup', 'Must have Degree=Sup after copula')]
       # Should we change tags when it's AUX to distinguish "is ard é" from
       # comparatives like "is airde sliabh ná cnoc"
       if pr['upos']=='AUX':
@@ -870,7 +856,7 @@ class GAToken(GoidelicToken):
     return ans
 
   # Ecl, Len, HPref
-  # TODO: still needs to be written...
+  # TODO: still needs to be written...!!!
   def predictFormNUM(self):
     ans = []
     pr = self.getPredecessor()
@@ -880,6 +866,12 @@ class GAToken(GoidelicToken):
       ans.append(Constraint('Ecl', 'Should be eclipsed in set phrase'))
     elif self['head']==self['index']+1:
       ans.extend(self.predictNounEclipsis())
+    if self.admitsPrefixH():
+      if self['upos']=='NUM' and prToken == 'a' and pr.has('PartType','Num'):
+        ans.append(Constraint('HPref', 'Number should have a prefix h'))
+    else:
+      ans.append(Constraint('!HPref', 'Can only have a prefix h before initial vowel'))
+
     return ans
 
   # Direct, Indirect, and (rarely) Len, VF, Ecl (le n-a mbaineann)
@@ -902,12 +894,12 @@ class GAToken(GoidelicToken):
     ans = self.predictVowelForm()
     pr = self.getPredecessor()
 
-    # Form=HPref; TODO: "pé hiad"?
     if self.admitsPrefixH():
       if pr==None:
         ans.append(Constraint('!HPref', '10.13: Cannot have prefix h on a sentence-initial pronoun'))
       else:
-        if pr['token'].lower() in ['cé', 'ní'] and self['lemma'] in ['é', 'í', 'ea', 'iad']:
+        # "pé" not in C.O. explicitly, but in FGB
+        if pr['token'].lower() in ['cé', 'ní', 'pé'] and self['lemma'] in ['é', 'í', 'ea', 'iad']:
           ans.append(Constraint('HPref', '10.13.1: Should have a prefix h on this pronoun following “cé” or “ní”'))
         elif pr['token'].lower()=='ní' and self['lemma'] in ['éard', 'eo', 'in', 'iúd']:
           ans.append(Constraint('HPref', '10.13.2: Should have a prefix h on this demonstrative pronoun following “ní”'))
@@ -924,7 +916,7 @@ class GAToken(GoidelicToken):
     elif self['lemma']=='ceachtar':
       ans.extend(self.predictFormNOUN())
     elif self['lemma']=='sin' and pr!=None and pr['token'].lower()=='ó':
-      ans.append(Constraint('Len', 'Should be lenited in set phrase “ó shin”'))
+      ans.append(Constraint('Len', 'Should be lenited in set phrase “ó shin”, or else “uaidh sin”'))
     else:
       ans.append(Constraint('!Len', 'Not sure why this pronoun is lenited'))
     return ans
@@ -944,7 +936,7 @@ class GAToken(GoidelicToken):
     ans.extend(self.predictVerbLenition(ans))
     ans.extend(self.predictEmphasis())
     if self.has('PronType','Rel') and re.match(r'at[aá]',self['token'].lower()):
-      ans.append(Constraint('Direct', 'Anything resembling atá should be have direct relative feature Form=Direct'))
+      ans.append(Constraint('Direct', 'Anything resembling atá should have direct relative feature Form=Direct'))
     ans.extend(self.predictVerbPrefixH())
     return ans
 
@@ -993,11 +985,11 @@ class GAToken(GoidelicToken):
     tok = self.demutatedToken().lower()
     if tok in ["b'", 'ba']:
       if self.has('Tense','Past'):
-        return [Constraint('None', 'Past copula “ba” is not conditional')]
+        return [Constraint('None', 'Past copula “ba” is not conditional; should not have a Mood feature')]
       else:
-        return [Constraint('Cnd', 'Copula “ba”, if not past tense, is conditional')]
+        return [Constraint('Cnd', 'Copula “ba”, if not past tense, is conditional, requiring Mood=Cnd')]
     elif tok=='an':
-      return [Constraint('Int', 'Copula “an” is an interrogative')]
+      return [Constraint('Int', 'Copula “an” is an interrogative; requires Mood=Int')]
     elif tok in ['ar', 'arbh', 'nach', 'nár', 'nárbh']:
       return [Constraint('Int|None', 'Might or might not be an interrogative')]
     else:
@@ -1021,7 +1013,7 @@ class GAToken(GoidelicToken):
   # Strong|Weak|Slender|NotSlender
   def predictNounTypeADJ(self):
     # include deprel nmod here because of coordinations through gen. sing nouns
-    if self.has('Number','Plur') and self.getDeprel() in ['amod','nmod']:
+    if self.has('Number','Plur') and self.getUltimateDeprel() in ['amod','nmod']:
       head = self.getUltimateHead()
       if head.has('Case','Nom'):
         if head.hasSlenderFinalConsonant():
@@ -1176,7 +1168,7 @@ class GAToken(GoidelicToken):
     if self['Number']!=None and not self.has('PronType','Art'):
       # final m => 1, final t => 2, ann=>3, other final nn=>1, etc.?
       return [Constraint('1|2|3', 'All pronomials should have a Person feature')]
-    return [Constraint('None', 'Not sure why this word has a Number feature')]
+    return [Constraint('None', 'Not sure why this word has a Person feature')]
 
   def predictPersonAUX(self):
     if self['token'].lower() in ['sé','sí']:
@@ -1321,12 +1313,16 @@ class GAToken(GoidelicToken):
       return [Constraint('Ind', 'Indefinite pronouns require PronType=Ind')]
     return [Constraint('ERR', 'Unrecognized pronoun; unsure of PronType feature in this case')]
 
+  # only Rel
   def predictPronTypeVERB(self):
     tok = self['token'].lower()
+    # atá, atáthar, atáim, atáimse, atáid, etc.
     if re.match('at[aá]',tok):
       return [Constraint('Rel', 'Forms like “atá” require the feature PronType=Rel')]
-    if re.search('s$',tok):
-      return [Constraint('Rel|None', 'Verb forms ending in s are sometimes relative which would require PronType=Rel')]
+    # oibríonns, but not "chlis", "fuarthas", "fhásas", "dhéanfaidís", ...
+    if re.search('s$',tok) and not self.has('Tense','Past') and \
+        not self.has('Number','Plur') and not self.has('Aspect','Hab'):
+      return [Constraint('Rel', 'This verb form ending in s likely requires PronType=Rel')]
     return [Constraint('None', 'Not sure why this verb has feature PronType')]
 
   def predictReflexPRON(self):
@@ -1343,12 +1339,19 @@ class GAToken(GoidelicToken):
   def predictTenseADV(self):
     if self['token'].lower()=='cár':
       return [Constraint('Past', 'Past tense interrogative “cár” should have Tense=Past before a regular verb')]
-    return []
+    return [Constraint('None', 'Adverbs do not normally take a Tense feature')]
 
   def predictTenseAUX(self):
-    if not self.has('Mood','Cnd'):
-      return [Constraint('Past|Pres', 'Copulas that are not conditional must be marked as present or past tense')]
-    return []
+    if self.has('Mood','Cnd'):
+      return [Constraint('None', 'Conditional copulas do not take a Tense feature')]
+    else:
+      tok = self['token'].lower()
+      if re.search('(^[am]?b|bh$|^níor)', tok):
+        return [Constraint('Past', 'Appears to be a past tense copula requiring Tense=Past')]
+      elif tok in ['an', 'nach', 'ní', 'gurb'] or re.search('^i?s', tok):
+        return [Constraint('Pres', 'Appears to be a present tense copula requiring Tense=Pres')]
+      else:  # gur, ar
+        return [Constraint('Past|Pres', 'Copulas that are not conditional must be marked as present or past tense')]
 
   def predictTensePART(self):
     # same condition as in predictVerbFormPART
