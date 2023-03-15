@@ -107,9 +107,9 @@ class GAToken(GoidelicToken):
   def hasFinalDental(self):
     return re.search(r'[dntls]$', self['token'].lower())
 
-  # TODO: but what about déarfainn,abair? check token too?
+  # can't use lemma because of déarfainn/abair, measa/olc, etc.
   def hasInitialVowel(self):
-    return re.match(r'[aeiouáéíóúAEIOUÁÉÍÓÚ]', self['lemma'])
+    return re.match(r'[aeiouáéíóúAEIOUÁÉÍÓÚ]', self.demutatedToken())
 
   def hasLenitableS(self):
     return re.match(r's[lnraeiouáéíóú]', self['lemma'], flags=re.IGNORECASE)
@@ -760,7 +760,8 @@ class GAToken(GoidelicToken):
       return [Constraint('Def', 'Needs Definite=Def because of definite nominal dependent')]
     if self.hasNumberSpecifier():
       return [Constraint('Def', 'Needs Definite=Def because of the number that follows')]
-    return []
+    # if we decide to keep Definite=Ind, then make this !Def?
+    return [Constraint('None', 'Not sure why this has the Definite feature')]
 
   def predictDefinitePROPN(self):
     return [Constraint('Def', 'All proper nouns need Definite=Def')]
@@ -822,7 +823,7 @@ class GAToken(GoidelicToken):
       return [Constraint('Len', 'Need Form=Len on “bheith” in this set phrase')]
     return [Constraint('None', 'Adverbs usually do not have a Form')]
 
-  # VF, Ecl, Len
+  # VF, Ecl, Len (a few have both Ecl and VF)
   def predictFormAUX(self):
     ans = self.predictVowelForm()
     # Eclipsis: go mba, dá mba, etc.
@@ -830,6 +831,10 @@ class GAToken(GoidelicToken):
       ans.append(Constraint('Ecl', 'Should be eclipsed by preceding particle'))
     else:
       ans.append(Constraint('!Ecl', 'Copula is sometimes eclipsed, but not here'))
+    if self['token'].lower()[:3]=='cha':
+      ans.append(Constraint('Len', 'Copula “chan” requires the Form=Len feature'))
+    else:
+      ans.append(Constraint('!Len', 'Not sure why this copula has Form=Len'))
     return ans
 
   # Ecl, Len, HPref, e.g. i ngach, chuile, haon (10.12.1)
@@ -1474,13 +1479,14 @@ class GAToken(GoidelicToken):
     else:
       return s.lower()
 
+  # TODO: handle (h)acmhainní or p(h)obal?
   def demutatedToken(self):
     s = self['token']
     if s[:2] in ['n-','t-']:
       return s[2:]
     if re.match('[nt][AEIOUÁÉÍÓÚ]',s):
       return s[1:]
-    if re.match('h[aeiouáéíóú]',s,flags=re.IGNORECASE) and self.hasInitialVowel():
+    if re.match('h[aeiouáéíóú]',s,flags=re.IGNORECASE) and re.match('[aeiouáéíóú]',self['lemma'],flags=re.IGNORECASE):
       return s[1:]
     if re.match('bhf',s,flags=re.IGNORECASE):
       return s[2:]
