@@ -123,12 +123,9 @@ class UDToken:
   def getDependents(self):
     return self._deps
 
+  # used to recurse over coordinations but that's not really what we want
   def isInPP(self):
-    # first, recurse over coordinations
-    if self.isAnyNominal() and self.getDeprel()=='conj':
-      return self.getHead().isInPP()
-    else:
-      return any(t['upos']=='ADP' and t['deprel']=='case' for t in self._deps)
+    return any(t['upos']=='ADP' and t['deprel']=='case' for t in self._deps)
 
   def _recomputeFeatureString(self):
     self._data['morph'] = '|'.join(k+'='+self._featDict[k] for k in sorted(self._featDict) if k[0]!='X')
@@ -163,9 +160,12 @@ class UDToken:
     return feature in self._featDict and featureVal in self._featDict[feature]
 
   def getDeprel(self):
+    return self['deprel']
+
+  def getUltimateDeprel(self):
     ans = self['deprel']
     if ans=='conj':
-      return self._head['deprel']
+      return self._head.getUltimateDeprel()
     else:
       return ans
 
