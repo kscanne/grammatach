@@ -1353,76 +1353,114 @@ class GAToken(GoidelicToken):
       else:  # gur, ar
         return [Constraint('Past|Pres', 'Copulas that are not conditional must be marked as present or past tense')]
 
+  # only Tense=Past is possible
+  # easier than AUX since stuff like "gur" is unambiguously Tense=Past
   def predictTensePART(self):
-    # same condition as in predictVerbFormPART
     tok = self['token'].lower()
+    # iff ends in r, except for one negative subjunctive "nár" in IUDT training
     if re.search('r$',tok) and not self.has('Mood','Sub'):
       return [Constraint('Past', 'Special past tense particles ending in -r should have Tense=Past feature')]
+    # same condition as in predictVerbFormPART
     if self['lemma']=='is' and re.match('b',tok) and \
        (self.has('PartType','Comp') or self.has('PartType','Sup')):
       return [Constraint('Past', "Particle ”ba” in comparative or superlative constructions must have Tense=Past feature")]
-    return []
+    return [Constraint('None', 'Not sure why this particle has Tense feature')]
 
+  # Pres or Past
   def predictTenseSCONJ(self):
     tok = self['token'].lower()
     if tok in ['murar','sarar','sular']:
       return [Constraint('Past', 'Special past tense conjunctions should have Tense=Past before a regular verb')]
     if tok in ['mura','murab'] and self.has('VerbForm','Cop'):
       return [Constraint('Pres', 'Special past tense conjunctions should have Tense=Past before a regular verb')]
-    return []
+    return [Constraint('None', 'Not sure why this conjunction has Tense feature')]
 
+  # just checks if it's there when appropriate
+  # could check it in presence of certain verb particles/conjunctions?
   def predictTenseVERB(self):
     return super().predictTenseVERB()
 
+  # only VerbForm=Part on some adjectives
   def predictVerbFormADJ(self):
+    if self.has('Degree','Pos'):
+      return [Constraint('None', 'We do not use VerbForm=Part with Degree=Pos')]
+    if self['Case']!=None:
+      return [Constraint('None', 'We do not use VerbForm=Part with attributive adjectives having Case, etc.')]
+    # remainder are comparative/superlative; these are rarely
+    # verbal adjectives, but may be, so we will allow it:
     return [Constraint('Part|None', 'Adjectives can have VerbForm=Part feature')]
 
   def predictVerbFormAUX(self):
     return [Constraint('Cop', 'Copulas must have VerbForm=Cop feature')]
 
+  # Inf, Vnoun, or nothing
+  # plenty of overlap with Case, etc. so might need review of guidelines
   def predictVerbFormNOUN(self):
     return super().predictVerbFormNOUN()
 
+  # only Cop (and rarely)
   def predictVerbFormPART(self):
     # same condition as in predictTensePART
     if self['lemma']=='is' and re.match('b',self['token'].lower()) and \
        (self.has('PartType','Comp') or self.has('PartType','Sup')):
       return [Constraint('Cop', 'Some comparative/superlative particles have VerbForm=Cop feature')]
-    return []
+    return [Constraint('None', 'Not sure why this particle has a VerbForm')]
 
+  # Cop only
   def predictVerbFormPRON(self):
-    # rare: caidé, cérbh, cér currently
-    return [Constraint('Cop|None', 'Pronouns sometimes have VerbForm=Cop feature')]
+    # rare: cérbh, cér currently
+    if self['token'].lower() in ['cér', 'cérbh']:
+      return [Constraint('Cop', 'Interrogative pronouns “cér” and “cérbh” take the VerbForm=Cop feature')]
+    return [Constraint('None', 'Not sure why this pronoun has a VerbForm')]
 
+  # Cop only
   def predictVerbFormSCONJ(self):
-    # short list? currently arb, dar, más, mura, murab, murar, ós, sular
-    return [Constraint('Cop|None', 'Conjunctions sometimes have VerbForm=Cop feature')]
+    if self['token'].lower() in ['arb', 'dar', 'más', 'murab', 'murarbh', 'ós', 'sularb']:
+      return [Constraint('Cop', 'This conjunction requires the VerbForm=Cop feature')]
+    if self['token'].lower() in ['mura', 'murar', 'sular']:
+      return [Constraint('Cop|None', 'This conjunction is sometimes a copula with VerbForm=Cop, othertimes not')]
+    return [Constraint('None', 'Not sure why this conjunction has a VerbForm')]
 
-  # TODO: 'maidir leis an airgead a leagan amach'
-  # airgead is obj of leagan, maidir is case of leagan
+  # none in current version of treebank!
+  # but see CO 10.9.1.b (aon, aonú, ochtó, ochtódú, ochtú)
+  # (and no ts- if it's séú, seachtú, seascadú, etc.... 10.10.2.a)
+  def predictXFormADJ(self):
+    return [Constraint('TPref|None', 'placeholder...')]
+
+  # only case here is "(an) t-aon X"
   def predictXFormDET(self):
     if self['lemma']=='aon':
       if (self.precedingDefiniteArticle() or self.precedingCen()) and \
            not self.getHead().isInDativePP():
-        return [Constraint('TPref', 'Should be “t-aon” after definite article')]
-    return []
+        return [Constraint('TPref', '10.9.1.b: Should be “t-aon” after definite article')]
+    return [Constraint('None', '10.9: Not sure why this determiner has a prefix t')]
 
   def predictXFormNOUN(self):
-    if self.hasLenitableS():
+    if self.hasInitialVowel():
+      # Exceptions in CO for oiread/iomad but these are genderless in treebank
+      # so including here just for clearer message and CO reference
+      if self['lemma'] in ['oiread', 'iomad', 'euro']:
+        return [Constraint('None', '10.9.1.b: Should never add prefix t to “euro”, “iomad”, or “oiread”')]
+      elif self.has('Number','Sing') and self.has('Gender','Masc') and \
+           self.has('Case','Nom') and not self.isInDativePP() and \
+          (self.precedingDefiniteArticle() or self.precedingCen()):
+        return [Constraint('TPref', '10.9.1.a: Should have prefix t before masculine noun after an article')]
+      else:
+        return [Constraint('None', '10.9.1: Not sure why this noun has a prefix t')]
+    elif self.hasLenitableS():
       if self.has('Number','Sing') and self.has('Gender','Fem') and \
            self.has('Case','Nom') and \
           (self.anyPrecedingDefiniteArticle() or self.precedingCen()):
-        return [Constraint('TPref', 'Should have prefix t before feminine noun after an article')]
-      if self.has('Number','Sing') and self.has('Gender','Masc') and \
+        return [Constraint('TPref', '10.10.1: Should have prefix t before feminine noun after an article')]
+      elif self.has('Number','Sing') and self.has('Gender','Masc') and \
            self.has('Case','Gen') and self.precedingDefiniteArticle():
-        return [Constraint('TPref', 'Should have prefix t before genitive masculine noun after an article')]
-    elif self.hasInitialVowel():
-      # Exceptions in CO for oiread/iomad but these are genderless in treebank
-      if self.has('Number','Sing') and self.has('Gender','Masc') and \
-           self.has('Case','Nom') and not self.isInDativePP() and \
-          (self.precedingDefiniteArticle() or self.precedingCen()):
-        return [Constraint('TPref', 'Should have prefix t before masculine noun after an article')]
-    return []
+        return [Constraint('TPref', '10.10.1: Should have prefix t before genitive masculine noun after an article')]
+      else:
+        # TODO: explicit exceptions if preceding word is "aon" or "céad"
+        # (ordinal) for clearer error messages
+        return [Constraint('None', '10.10: Not sure why this noun has a prefix t')]
+    else:
+      return [Constraint('None', '10.9/10: Prefix t on a word that cannot admit one')]
 
   def predictXFormPROPN(self):
     return self.predictXFormNOUN()
