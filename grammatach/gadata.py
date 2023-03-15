@@ -225,7 +225,6 @@ prepositionsWithArticle = frozenset([
   'fán',
   'faoin',
   'fén',
-  'ins',
   'insa',
   'ón',
   'sa',
