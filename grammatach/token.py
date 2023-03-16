@@ -58,17 +58,13 @@ class UDToken:
     for toCheck in self.checkableFeatures():
       if toCheck in self._verified:
         continue
-      predictions = self.predictFeatureValue(toCheck)
-      # first, check any non-optional feature value I predict is really there
-      for constraint in predictions:
-        if not constraint.isSatisfied(self[toCheck]):
-          self.addWarning(constraint.getMessage())
-      # then, that any feature value that's there is explained by a prediction
-      if self[toCheck] != None:
-        for val in self[toCheck]:
-          if not any(c.explainsValue(val) for c in predictions):
-            self.addWarning('Not sure why this has '+toCheck+'='+val)
-            #self.killFeature(toCheck,val)
+      constraintList = self.predictFeatureValue(toCheck)
+      if len(constraintList)==0:
+        self.addWarning('Warning: no constraints found for feature '+toCheck)
+      else:
+        for constraint in constraintList:
+          if not constraint.isSatisfied(self[toCheck]):
+            self.addWarning(constraint.getMessage())
 
   def predictFeatureValue(self, feat):
     raise NotImplementedError('should only be called for specific language')
