@@ -445,7 +445,7 @@ class GAToken(GoidelicToken):
     if pr.has('Poss','Yes'):
       if pr['lemma']=='mo' or pr.has('Gender','Masc'):
         return [Constraint('Len','10.2.3.a: Always lenite after possessive “mo” or singular masculine “a”')]
-      elif pr['lemma']=='do' and pr.has('Person','2'):
+      elif pr['lemma'] in ['do','i_do'] and pr.has('Person','2'):
         return [Constraint('Len','10.2.3.a: Always lenite after possessive “do”')]
       elif pr.has('Gender','Fem'):
         return [Constraint('!Len','10.2.3.a: Never lenite after feminine possessive')]
@@ -462,8 +462,8 @@ class GAToken(GoidelicToken):
             return [Constraint('Len', '10.2.4.a: Lenite a noun or number after “aon” or ordinal “céad”')]
 
     # 10.2.4
-    if pr['upos']=='NUM':
-      if prToken in ['dá','dhá']:
+    if pr['upos']=='NUM' and pr['head']==self['index']:
+      if prToken in ['dá','dhá','2']:
         prpr = pr.getPredecessor()
         if prpr.has('Poss','Yes') and (prpr.has('Gender','Fem') or prpr.has('Number','Plur')):
           return [Constraint('!Len', '10.2.4.b.e1: Do not lenite after “dhá” if preceded by plural or feminine possessive')]
