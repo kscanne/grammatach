@@ -777,22 +777,22 @@ class GAToken(GoidelicToken):
 
   def predictDefiniteNOUN(self):
     if self.precedingCen() or self.anyDependentDefiniteArticle():
-      return [Constraint('Def', 'Needs Definite=Def because of preceding article')]
+      return [Constraint('Def', '3.1.2.b: Needs Definite=Def because of preceding article')]
     if self.isPossessed():
-      return [Constraint('Def', 'Needs Definite=Def because of preceding possessive adjective')]
+      return [Constraint('Def', '3.1.2.c: Needs Definite=Def because of preceding possessive adjective')]
     if self.hasGachDependent():
-      return [Constraint('Def', 'Needs Definite=Def because of “gach”')]
-    if self.has('Case','Voc') or self['deprel']=='vocative':
-      return [Constraint('Def', 'All vocatives need Definite=Def')]
-    if self.hasPropagatingDefiniteDependent():
-      return [Constraint('Def', 'Needs Definite=Def because of definite nominal dependent')]
+      return [Constraint('Def', '3.1.2.d: Needs Definite=Def because of “gach”')]
     if self.hasNumberSpecifier():
-      return [Constraint('Def', 'Needs Definite=Def because of the number that follows')]
+      return [Constraint('Def', '3.1.2.e: Needs Definite=Def because of the number that follows')]
+    if self.hasPropagatingDefiniteDependent():
+      return [Constraint('Def', '3.1.2.f: Needs Definite=Def because of definite nominal dependent')]
+    if self.has('Case','Voc') or self['deprel']=='vocative':
+      return [Constraint('Def', '3.1.2.g: All vocatives need Definite=Def')]
     # if we decide to keep Definite=Ind, then make this !Def?
-    return [Constraint('None', 'Not sure why this has the Definite feature')]
+    return [Constraint('None', '3.1: Not sure why this has the Definite feature')]
 
   def predictDefinitePROPN(self):
-    return [Constraint('Def', 'All proper nouns need Definite=Def')]
+    return [Constraint('Def', '3.1.2.a: All proper nouns need Definite=Def')]
 
   def predictDegreeADJ(self):
     # if it's amod and not comp/sup, it gets features from NOUN => no Degree
