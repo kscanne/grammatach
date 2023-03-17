@@ -582,7 +582,7 @@ class GAToken(GoidelicToken):
 
     # 10.2.10 Nom. in form, genitive in function
 
-    # 10.2.11
+    # 10.2.11 Surnames
     if pr.has('PartType','Pat'):
       if prToken in ['ní', 'uí']:
         return [Constraint('Len','10.2.11: Lenite surname after “ní” or “uí”')]
@@ -597,6 +597,13 @@ class GAToken(GoidelicToken):
           else:
             return [Constraint('Len','10.2.11: Lenite surname after Mhic, Nic, etc.')]
 
+    # 10.2.12 Compound words; not relevant for us
+    # 10.2.13 After copula
+    if pr.has('VerbForm','Cop'):
+      if pr.has('Tense','Past') or pr.has('Mood','Cnd'):
+        return [Constraint('Len','10.2.13: Should lenite after past tense or conditional copula')]
+      else:
+        return [Constraint('!Len','10.2.13.e1: Should only lenite after a copula if it is past tense or conditional')]
 
     return [Constraint('!Len','10.2: Not sure why this word is lenited')]
 
@@ -1038,8 +1045,10 @@ class GAToken(GoidelicToken):
         return [Constraint('Cnd', 'Copula “ba”, if not past tense, is conditional, requiring Mood=Cnd')]
     elif tok=='an':
       return [Constraint('Int', 'Copula “an” is an interrogative; requires Mood=Int')]
-    elif tok in ['ar', 'arbh', 'nach', 'nár', 'nárbh']:
+    elif tok=='nach':
       return [Constraint('Int|None', 'Might or might not be an interrogative')]
+    elif tok in ['ar', 'arbh', 'nár', 'nárbh']:
+      return [Constraint('Cnd|Int|None', 'Might or might not be an interrogative; might or might not be conditional')]
     else:
       return [Constraint('None', 'Not sure why this copula has a Mood feature')]
 
@@ -1418,9 +1427,15 @@ class GAToken(GoidelicToken):
   def predictTenseSCONJ(self):
     tok = self['token'].lower()
     if tok in ['murar','sarar','sular']:
-      return [Constraint('Past', 'Special past tense conjunctions should have Tense=Past before a regular verb')]
-    if tok in ['mura','murab'] and self.has('VerbForm','Cop'):
-      return [Constraint('Pres', 'Special past tense conjunctions should have Tense=Past before a regular verb')]
+      if self.has('VerbForm','Cop'):
+        return [Constraint('Past|Pres', 'This copula form should be tagged with Tense=Past or Tense=Pres, depending on context')]
+      else:
+        return [Constraint('Past', 'Special past tense conjunctions should have Tense=Past before a regular verb')]
+    elif tok in ['mura','murab','sularb']:
+      if self.has('VerbForm','Cop'):
+        return [Constraint('Pres', 'These copular conjunctions should have feature Tense=Pres')]
+      else:
+        return [Constraint('None', 'These conjunctions do not take the Tense feature before a present tense verb')]
     return [Constraint('None', 'Not sure why this conjunction has Tense feature')]
 
   # just checks if it's there when appropriate
