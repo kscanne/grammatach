@@ -580,6 +580,24 @@ class GAToken(GoidelicToken):
     if pr.isNominal() and pr.has('Case','Gen') and not self.has('Definite','Def') and self['head']==self['index']-1:
       return [Constraint('!Len','10.2.9: Do not lenite following a genitive')]
 
+    # 10.2.10 Nom. in form, genitive in function
+
+    # 10.2.11
+    if pr.has('PartType','Pat'):
+      if prToken in ['ní', 'uí']:
+        return [Constraint('Len','10.2.11: Lenite surname after “ní” or “uí”')]
+      elif re.search('^(mh?|n)[ai][cg]$', prToken):
+        if self['lemma'].lower()[0] in ['c','g']:
+          return [Constraint('!Len','10.2.11.e1: Should not lenite after Mhic, Nic, etc. when surname starts with C or G')]
+        elif self['lemma'] in ['Treana']:
+          return [Constraint('!Len','10.2.11.e2: Should not lenite after Mhic, Nic, etc. in certain special cases')]
+        else:
+          if prToken in ['mac', 'mag']:
+            return [Constraint('Len|!Len','10.2.11: Some surnames lenite following “Mac” or “Mag”, others do not')]
+          else:
+            return [Constraint('Len','10.2.11: Lenite surname after Mhic, Nic, etc.')]
+
+
     return [Constraint('!Len','10.2: Not sure why this word is lenited')]
 
   # TODO: need to handle initial m,s in eclipsed context too :( :(
