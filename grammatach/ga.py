@@ -443,9 +443,11 @@ class GAToken(GoidelicToken):
 
     # 10.2.3
     if pr.has('Poss','Yes'):
-      if pr['lemma'] in ['mo', 'do'] or pr.has('Gender','Masc'):
-        return [Constraint('Len','10.2.3.a: Always lenite after possessives mo, do, or singular masculine “a”')]
-      if pr.has('Gender','Fem'):
+      if pr['lemma']=='mo' or pr.has('Gender','Masc'):
+        return [Constraint('Len','10.2.3.a: Always lenite after possessive “mo” or singular masculine “a”')]
+      elif pr['lemma']=='do' and pr.has('Person','2'):
+        return [Constraint('Len','10.2.3.a: Always lenite after possessive “do”')]
+      elif pr.has('Gender','Fem'):
         return [Constraint('!Len','10.2.3.a: Never lenite after feminine possessive')]
     if pr['lemma'] in ['gach_uile', 'uile'] and pr['head']==self['index']:
       return [Constraint('Len','10.2.3.b: Always lenite after the adjective “uile”')]
@@ -820,6 +822,11 @@ class GAToken(GoidelicToken):
     # Cmp,Sup is possible ("níos réitithe"), but caught with rules above
     if self.has('VerbForm','Part'):
       return [Constraint('None', 'No degree for verbal adjectives unless comparative')]
+
+    # go leor, but as an adverbial "maith go leor"...
+    # "leor" is tagged NOUN in "go leor cainte"
+    if self['lemma']=='leor' and self['deprel']=='fixed':
+      return [Constraint('None', 'No Degree feature in fixed adverbial phrase')]
 
     return [Constraint('Pos', 'Should default to Degree=Pos')]
 
