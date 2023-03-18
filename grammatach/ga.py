@@ -428,14 +428,20 @@ class GAToken(GoidelicToken):
            noun.has('Number','Sing'):
           return [Constraint('Len', '10.2.1.b: Must lenite a masculine singular noun in the genitive after the definite article')]
         elif noun.isInDativePP():
-          return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite in the dative after the definite article')]
+          if self.isEclipsable():  # i.e. not initial "m"
+            return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite in the dative after the definite article')]
+          else:
+            return [Constraint('!Len|Len', '10.2.1.c: Can either lenite an initial m in the dative after the definite article or leave it unchanged')]
         elif noun.has('Case','Nom') and noun.has('Gender','Fem') and \
            noun.has('Number','Sing'):
           return [Constraint('Len', '10.2.1.a: Must lenite feminine singular after the definite article')]
       elif self.precedingLenitingPrepPlusArticle(): # san, sa, den, don
         return [Constraint('Len', '10.2.1.c: Always lenite after sa, san, den, or don')]
       else: # remainder are examples like "faoin", "fén", "ón"
-        return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite after faoin, ón, etc.')]
+        if self.isEclipsable():  # i.e. not initial "m"
+          return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite after faoin, ón, etc.')]
+        else:
+          return [Constraint('!Len|Len', '10.2.1.c: Can either lenite an initial m after faoin, ón, etc. or leave it unchanged')]
 
     # 10.2.2
     if self.has('Case', 'Voc') and any(t.has('PartType','Voc') for t in self.getDependents()):
@@ -607,6 +613,9 @@ class GAToken(GoidelicToken):
       else:
         return [Constraint('!Len','10.2.13.e1: Should only lenite after a copula if it is past tense or conditional')]
 
+    # TODO: Outside of C.O.
+    # FGB is clear that degree particle PartType=Deg lenites
+
     return [Constraint('!Len','10.2: Not sure why this word is lenited')]
 
   # TODO: need to handle initial m,s in eclipsed context too :( :(
@@ -732,7 +741,7 @@ class GAToken(GoidelicToken):
 
   # called from AUX, PART, PRON, SCONJ
   def predictVowelForm(self):
-    if re.search("b[’'h]?$", self['token'].lower()):
+    if self['lemma']!='sibh' and re.search("b[’'h]?$", self['token'].lower()):
       return [Constraint('VF', 'Copula before vowel or f must have Form=VF')]
     return [Constraint('!VF', 'Form=VF not allowed without initial vowel or f')]
 
@@ -892,6 +901,8 @@ class GAToken(GoidelicToken):
 
   # Ecl, Len, HPref, Emp
   def predictFormNOUN(self):
+    if self.has('Abbr','Yes'):
+      return [Constraint('None', '3.2.1.a: Abbreviations should never be mutated')]
     ans = self.predictEmphasis()
     ans.extend(self.predictNounLenition())
     ans.extend(self.predictNounEclipsis())
