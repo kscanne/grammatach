@@ -588,12 +588,13 @@ class GAToken(GoidelicToken):
       return [Constraint('Len', '10.2.8: Lenite a genitive singular noun following a plural ending in a slender consonant')]
 
     # 10.2.9; include just for clearer error message
-    if pr.isNominal() and pr.has('Case','Gen') and not self.has('Definite','Def') and hd['index']==self['index']-1 and hd.has('Case','Nom'):
+    if pr.isNominal() and pr.has('Case','Gen') and not self.has('Definite','Def') and hd['index']==self['index']-1:
       return [Constraint('!Len','10.2.9: Do not lenite following a genitive')]
 
     # 10.2.10 Nom. in form, genitive in function
     # can *almost* do this without requiring self to be Case=Nom
     # except for cases like "fear Gaeltachta", etc.
+    # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
     if self.isGenitivePosition() and self.has('Definite','Def') and self.has('Case','Nom') and self['head']==self['index']-1:
       if self['lemma'] in ['San','Dia']:
         return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
