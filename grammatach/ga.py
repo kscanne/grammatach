@@ -186,7 +186,7 @@ class GAToken(GoidelicToken):
   # *except* for cases like "rang Gaeilge", "fear Gaeltachta", etc.
   def hasPropagatingDefiniteDependent(self):
     exceptions = ['Gaeilge','Béarla','Gaeltacht','Eabhrais','Fraincis','Breatnais']
-    return any(t.isNominal() and t['deprel']=='nmod' and t.has('Definite','Def') and not t.isInPP() and (t['lemma'] not in exceptions or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
+    return any(t.isGenitivePosition() and t.has('Definite','Def') and (t['lemma'] not in exceptions or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
 
   # not necessarily preceding; e.g. "sa dá chogadh"
   def anyDependentDefiniteArticle(self):
@@ -274,6 +274,9 @@ class GAToken(GoidelicToken):
            not self.has('VerbForm','Part')  and \
            not (pr['lemma']=='go' and self['lemma']=='léir') and \
            pr['lemma']!='sách' and pr['lemma']!='chomh'
+
+  def isGenitivePosition(self):
+    return self.isNominal() and self['deprel']=='nmod' and not self.isInPP()
 
   ####################### END BOOLEAN METHODS ##########################
 
@@ -585,10 +588,17 @@ class GAToken(GoidelicToken):
       return [Constraint('Len', '10.2.8: Lenite a genitive singular noun following a plural ending in a slender consonant')]
 
     # 10.2.9; include just for clearer error message
-    if pr.isNominal() and pr.has('Case','Gen') and not self.has('Definite','Def') and self['head']==self['index']-1:
+    if pr.isNominal() and pr.has('Case','Gen') and not self.has('Definite','Def') and hd['index']==self['index']-1 and hd.has('Case','Nom'):
       return [Constraint('!Len','10.2.9: Do not lenite following a genitive')]
 
     # 10.2.10 Nom. in form, genitive in function
+    # can *almost* do this without requiring self to be Case=Nom
+    # except for cases like "fear Gaeltachta", etc.
+    if self.isGenitivePosition() and self.has('Definite','Def') and self.has('Case','Nom') and self['head']==self['index']-1:
+      if self['lemma'] in ['San','Dia']:
+        return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
+      else:
+        return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
 
     # 10.2.11 Surnames
     if pr.has('PartType','Pat'):
@@ -1318,7 +1328,7 @@ class GAToken(GoidelicToken):
         return [Constraint('Cmpd', 'Second part of compound preposition should have feature PrepForm=Cmpd')]
     else:
       if (cmpd in gadata.compoundPrepositions or cmpd == 'go dtí') and \
-          any(t.isNominal() and t['deprel']=='nmod' and not t.isInPP() for t in self.getDependents()):
+          any(t.isGenitivePosition() for t in self.getDependents()):
         return [Constraint('Cmpd', 'This should be fixed and PrepForm=Cmpd')]
     return [Constraint('None', 'Does not appear to need PrepForm=Cmpd feature')]
 
