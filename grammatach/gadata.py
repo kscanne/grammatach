@@ -69,7 +69,7 @@ compoundPrepositions = frozenset([
   'thar ceann'
 ])
 
-# surface tokens for which we need to permit None after "ar"
+# demutated surface tokens for which we need to permit !Len after "ar"
 unlenitedAfterAr = frozenset([
   'ball',
   'bannaí',
@@ -151,7 +151,8 @@ unlenitedAfterAr = frozenset([
   'tinneall',
   'tír',
   'trastomhas',
-  'turas'
+  'turas',
+  'tús'
 ])
 
 # surface tokens for which we need to permit None after "thar"

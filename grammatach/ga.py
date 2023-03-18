@@ -470,7 +470,7 @@ class GAToken(GoidelicToken):
           if pr.has('NumType','Ord') or pr['lemma']=='aon':
             return [Constraint('Len', '10.2.4.a: Lenite a noun or number after “aon” or ordinal “céad”')]
 
-    # 10.2.4
+    # 10.2.4 following numbers
     if pr['upos']=='NUM' and pr['head']==self['index']:
       if prToken in ['dá','dhá','2']:
         prpr = pr.getPredecessor()
@@ -483,7 +483,7 @@ class GAToken(GoidelicToken):
         else:
           return [Constraint('Len', '10.2.4.c: Lenite after numbers 3-6')]
 
-    # 10.2.5
+    # 10.2.5 following prepositions
     if pr['upos']=='PART' and pr.has('PartType','Inf') and pr['lemma']=='a' and self.has('VerbForm','Inf'):
       return [Constraint('Len', '10.2.5.a: Always lenite a verbal noun after the preposition “a”')]
     if pr['upos']=='ADP' and not pr.has('Poss','Yes'):
@@ -495,7 +495,7 @@ class GAToken(GoidelicToken):
         else:
           return [Constraint('Len', '10.2.5.a: Always lenite after certain simple prepositions')]
       elif pr['lemma']=='ar':
-        if self['lemma'] in gadata.unlenitedAfterAr:
+        if self.demutatedToken().lower() in gadata.unlenitedAfterAr:
           if self.isQualifiedNoun():
             return [Constraint('Len', '10.2.5.b.e1: Lenite a noun after “ar” when it has an adjective or genitive noun dependent')]
           else:
@@ -572,7 +572,7 @@ class GAToken(GoidelicToken):
       return [Constraint('Len', '10.2.7: Lenite a genitive singular noun following a feminine noun')]
 
 
-    # 10.2.8
+    # 10.2.8 following slender plurals
     if hd.isNominal() and hd.has('Case','Nom') and hd.has('Number','Plur') and hd.hasSlenderFinalConsonant() and self.has('Case','Gen') and self.has('Number','Sing') and not self.has('Definite','Def'):
       if hd.hasFinalDental() and self.hasInitialDental():
         return [Constraint('!Len', '10.2.8.a: Do not lenite an initial dental after a plural noun ending in a slender dental')]
@@ -595,8 +595,9 @@ class GAToken(GoidelicToken):
     # can *almost* do this without requiring self to be Case=Nom
     # except for cases like "fear Gaeltachta", etc.
     # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
+    # TODO: weaken headindex=index-1?  Cumann Ríoga Bhaile Átha Cliath?
     if self.isGenitivePosition() and self.has('Definite','Def') and self.has('Case','Nom') and self['head']==self['index']-1:
-      if self['lemma'] in ['San','Dia']:
+      if self['lemma'] in ['San']:
         return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
       else:
         return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
