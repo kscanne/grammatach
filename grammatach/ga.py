@@ -903,6 +903,8 @@ class GAToken(GoidelicToken):
   def predictFormNOUN(self):
     if self.has('Abbr','Yes'):
       return [Constraint('None', '3.2.1.a: Abbreviations should never be mutated')]
+    if self.has('Foreign','Yes'):
+      return [Constraint('None', 'Non-Irish words should never be mutated')]
     ans = self.predictEmphasis()
     ans.extend(self.predictNounLenition())
     ans.extend(self.predictNounEclipsis())
