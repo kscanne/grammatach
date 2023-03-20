@@ -172,6 +172,11 @@ class GAToken(GoidelicToken):
       return False
     return pr['lemma']=='ag' and self.has('VerbForm','Vnoun')
 
+  # "dúnadh an dorais" but not "an doras a dhúnadh"
+  def isObjectFollowingVerbalNoun(self):
+    hd = self.getHead()
+    return self.isNominal() and self['deprel']=='obj' and hd['index']<self['index'] and hd.has('VerbForm','Vnoun')
+
   def isPossessed(self):
     return any(t.has('Poss','Yes') for t in self.getDependents())
 
@@ -628,7 +633,7 @@ class GAToken(GoidelicToken):
     # which should probably not be marked Definite=Def as a solution
     # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
     if self.has('Definite','Def') and self.has('Number','Sing') and not self.hasPrecedingDependent():
-      if (self.isGenitiveOfHead() and self['head']<self['index']) or self.isObjectOfGenitivePrep():
+      if (self.isGenitiveOfHead() and self['head']<self['index']) or self.isObjectOfGenitivePrep() or self.isObjectFollowingVerbalNoun():
         if self.demutatedToken() in ['San','Dé']:
           return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
         else:
