@@ -491,8 +491,13 @@ class GAToken(GoidelicToken):
     if pr['upos']=='PART' and pr.has('PartType','Inf') and pr['lemma']=='a' and self.has('VerbForm','Inf'):
       return [Constraint('Len', '10.2.5.a: Always lenite a verbal noun after the preposition “a”')]
     if pr['upos']=='ADP' and not pr.has('Poss','Yes'):
-      if pr['lemma'] in ['de', 'do', 'a', 'faoi', 'ionsar', 'mar', 'ó', 'roimh', 'trí']:
+      if pr['lemma'] in ['de', 'do', 'a', 'ionsar', 'mar', 'ó', 'roimh', 'trí']:
         return [Constraint('Len', '10.2.5.a: Always lenite after certain simple prepositions')]
+      elif pr['lemma']=='faoi':
+        if self['lemma'] in ['deara', 'seach']:
+          return [Constraint('!Len', '10.2.5.a.e2: Do not lenite in set phrase “faoi deara”')]
+        else:
+          return [Constraint('Len', '10.2.5.a: Should lenite after simple preposition “faoi”')]
       elif pr['lemma']=='um':
         if self.hasInitialBMP():
           return [Constraint('!Len', '10.2.5.a.e1: Do not lenite words starting with b, m, or p after “um”')]
