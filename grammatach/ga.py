@@ -134,6 +134,9 @@ class GAToken(GoidelicToken):
   def hasPrefixH(self):
     return re.match(r'h-?[aeiouáéíóúAEIOUÁÉÍÓÚ]', self['token']) and self.admitsPrefixH()
 
+  def hasPrecedingDependent(self):
+    return any(t['index']<self['index'] for t in self.getDependents())
+
   def precedingCen(self):
     head = self.getHead()
     return head['index']==self['index']-1 and head['token'].lower()=='cén'
@@ -142,6 +145,7 @@ class GAToken(GoidelicToken):
   # These must lenite a following noun according to C.O.
   def precedingLenitingPrepPlusArticle(self):
     pr = self.getPredecessor()
+    # TODO: don't need any of these None checks... use pr.isRoot() ...
     if pr==None:
       return False
     return pr['lemma'] in ['i', 'de', 'do'] and self.anyPrecedingDefiniteArticle()
@@ -172,7 +176,7 @@ class GAToken(GoidelicToken):
     return any(t.has('Poss','Yes') for t in self.getDependents())
 
   def hasGachDependent(self):
-    return any(t['lemma']=='gach' and t['upos']=='DET' for t in self.getDependents())
+    return any(t['lemma'] in ['gach', 'gach_uile'] and t['upos']=='DET' for t in self.getDependents())
 
   def isQualifiedNoun(self):
     return self.isNominal() and any((t.isNominal() and t.has('Case','Gen')) or (t['upos']=='ADJ' and t['deprel']=='amod') for t in self.getDependents())
@@ -549,8 +553,7 @@ class GAToken(GoidelicToken):
         return [Constraint('!Len', '10.2.7.d: Do not lenite a genitive noun after a feminine noun that expresses an indefinite quantity')]
       # TODO 10.2.7.e,f,g :(  Need big lists....
 
-      if hd.isVerbalNounWithAg():
-        return [Constraint('!Len', '10.2.7.h: Do not lenite the object of a feminine verbal noun following “ag”')]
+      # 10.2.7.h handled after this block since verbal noun has no Case
 
       # TODO 10.2.7.i  Might need a list, even then tricky to tell
       # whether word is being used as common or verbal noun (e.g. lorg)
@@ -570,6 +573,14 @@ class GAToken(GoidelicToken):
         return [Constraint('!Len', '10.2.7.m: Do not lenite after a feminine noun if the genitive noun is modified by an adjective or another noun')]
 
       return [Constraint('Len', '10.2.7: Lenite a genitive singular noun following a feminine noun')]
+
+    if hd.isVerbalNounWithAg() and self['deprel']=='obj' and self.has('Case','Gen'):
+      if hd['lemma']=='fáil' and self['lemma']=='bás':
+        return [Constraint('Len', '10.2.7.h.e1: Lenite the object of a feminine verbal noun in set phrase “ag fáil bháis”')]
+      elif hd['lemma']=='gabháil' and self['lemma']=='fonn':
+        return [Constraint('Len', '10.2.7.h.e2: Lenite the object of a feminine verbal noun in set phrase “ag gabháil fhoinn”')]
+      else:
+        return [Constraint('!Len', '10.2.7.h: Do not lenite the object of a feminine verbal noun following “ag”')]
 
 
     # 10.2.8 following slender plurals
@@ -592,12 +603,11 @@ class GAToken(GoidelicToken):
       return [Constraint('!Len','10.2.9: Do not lenite following a genitive')]
 
     # 10.2.10 Nom. in form, genitive in function
-    # can *almost* do this without requiring self to be Case=Nom
-    # except for cases like "fear Gaeltachta", etc.
+    # TODO: except for cases like "fear Gaeltachta", "leagan Gaeilge", etc.
+    # which should probably not be marked Definite=Def as a solution
     # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
-    # TODO: weaken headindex=index-1?  Cumann Ríoga Bhaile Átha Cliath?
-    if self.isGenitivePosition() and self.has('Definite','Def') and self.has('Case','Nom') and self['head']==self['index']-1:
-      if self['lemma'] in ['San']:
+    if self.isGenitivePosition() and self.has('Definite','Def') and self.has('Number','Sing') and self['head']<self['index'] and not self.hasPrecedingDependent():
+      if self.demutatedToken() in ['San','Dé']:
         return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
       else:
         return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
