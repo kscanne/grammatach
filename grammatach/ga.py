@@ -135,7 +135,7 @@ class GAToken(GoidelicToken):
     return re.match(r'h-?[aeiouáéíóúAEIOUÁÉÍÓÚ]', self['token']) and self.admitsPrefixH()
 
   def hasPrecedingDependent(self):
-    return any(t['index']<self['index'] for t in self.getDependents())
+    return any(t['index']<self['index'] and t['deprel']!='case' for t in self.getDependents())
 
   def precedingCen(self):
     head = self.getHead()
@@ -181,6 +181,13 @@ class GAToken(GoidelicToken):
   def isQualifiedNoun(self):
     return self.isNominal() and any((t.isNominal() and t.has('Case','Gen')) or (t['upos']=='ADJ' and t['deprel']=='amod') for t in self.getDependents())
 
+  def isGodti(self):
+    return self['lemma']=='go' and self.has('PrepForm','Cmpd') and any(t['lemma']=='dtí' for t in self.getDependents())
+
+  def isObjectOfGenitivePrep(self):
+    genPreps = ['chun','cois','dála','fearacht','timpeall','trasna']
+    return self.isNominal() and self['VerbForm']==None and any(t['upos']=='ADP' and t.getDeprel()=='case' and not t.isGodti() and (t.has('PrepForm','Cmpd') or t['lemma'] in genPreps) for t in self.getDependents())
+
   # First any is for "Airteagal III" or "rang 5"
   # Second any is for stuff like "bus a dó", "rang a 5"
   def hasNumberSpecifier(self):
@@ -190,7 +197,7 @@ class GAToken(GoidelicToken):
   # *except* for cases like "rang Gaeilge", "fear Gaeltachta", etc.
   def hasPropagatingDefiniteDependent(self):
     exceptions = ['Gaeilge','Béarla','Gaeltacht','Eabhrais','Fraincis','Breatnais']
-    return any(t.isGenitivePosition() and t.has('Definite','Def') and (t['lemma'] not in exceptions or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
+    return any(t.isGenitiveOfHead() and t.has('Definite','Def') and (t['lemma'] not in exceptions or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
 
   # not necessarily preceding; e.g. "sa dá chogadh"
   def anyDependentDefiniteArticle(self):
@@ -279,8 +286,17 @@ class GAToken(GoidelicToken):
            not (pr['lemma']=='go' and self['lemma']=='léir') and \
            pr['lemma']!='sách' and pr['lemma']!='chomh'
 
-  def isGenitivePosition(self):
+  # nmod of something but not in a PP
+  # less general than isGenitivePosition, which also includes
+  # genitives that follow compound prepositions like "in aghaidh", etc.
+  # where the head points somewhere other than "aghaidh"
+  # Also note this doesn't imply the word is genitive in form, e.g. if it
+  # is definite ("seoladh" in "dáta sheoladh an leabhair")
+  def isGenitiveOfHead(self):
     return self.isNominal() and self['deprel']=='nmod' and not self.isInPP()
+
+  def isGenitivePosition(self):
+    return self.isGenitiveOfHead() or self.isObjectOfGenitivePrep()
 
   ####################### END BOOLEAN METHODS ##########################
 
@@ -611,11 +627,12 @@ class GAToken(GoidelicToken):
     # TODO: except for cases like "fear Gaeltachta", "leagan Gaeilge", etc.
     # which should probably not be marked Definite=Def as a solution
     # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
-    if self.isGenitivePosition() and self.has('Definite','Def') and self.has('Number','Sing') and self['head']<self['index'] and not self.hasPrecedingDependent():
-      if self.demutatedToken() in ['San','Dé']:
-        return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
-      else:
-        return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
+    if self.has('Definite','Def') and self.has('Number','Sing') and not self.hasPrecedingDependent():
+      if (self.isGenitiveOfHead() and self['head']<self['index']) or self.isObjectOfGenitivePrep():
+        if self.demutatedToken() in ['San','Dé']:
+          return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
+        else:
+          return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
 
     # 10.2.11 Surnames
     if pr.has('PartType','Pat'):
