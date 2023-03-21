@@ -433,6 +433,8 @@ class GAToken(GoidelicToken):
     # 10.3.3 dhá agus dháréag... tagged as NUM and NOUN resp in UD (see FGB)
     # 10.3.4 déag agus fichead... tagged as NOUN in UD
     # 10.3.5 in compounds (ollmhór, etc.)
+
+    # TODO: ní ba X (fixed), or ever just "ba mheasa" PartType=Comp
     # 10.3.6 After copula:
     pr = self.getPredecessor()
     if pr!=None and pr.isCopula() and (pr.has('Tense','Past') or pr.has('Mood','Cnd')):
@@ -443,6 +445,8 @@ class GAToken(GoidelicToken):
   def predictNounLenition(self):
     if not self.isLenitable():
       return [Constraint('!Len', 'Cannot lenite an unlenitable letter')]
+    if self['lemma']=='bheith':
+      return [Constraint('Len', 'Verbal noun “bheith” always gets Form=Len')]
     noun = self.getHead() if self['upos']=='NUM' else self
     pr = self.getPredecessor()
     prToken = pr['token'].lower()
@@ -514,6 +518,11 @@ class GAToken(GoidelicToken):
     if pr['upos']=='ADP' and not pr.has('Poss','Yes'):
       if pr['lemma'] in ['de', 'do', 'a', 'ionsar', 'mar', 'ó', 'roimh', 'trí']:
         return [Constraint('Len', '10.2.5.a: Always lenite after certain simple prepositions')]
+      elif self.isInPhrase(('go','céile')) or self.isInPhrase(('le','céile')):
+        if len(self.getDependents())>1:  # m.sh. le céile colscartha
+          return [Constraint('!Len', 'Do not lenite “céile” here since it does not look like an adverbial phrase')]
+        else: # one dependent (the ADP le or go)
+          return [Constraint('Len', 'Lenite “céile” in certain adverbial phrases')]
       elif pr['lemma']=='faoi':
         if self['lemma'] in ['deara', 'seach']:
           return [Constraint('!Len', '10.2.5.a.e2: Do not lenite in set phrase “faoi deara”')]
@@ -1220,6 +1229,8 @@ class GAToken(GoidelicToken):
       return [Constraint('Sing|Plur|None', 'Foreign words may or may not have a Number feature')]
     elif self['VerbForm']!=None:
       return [Constraint('None', 'Verbal nouns cannot have a Number feature')]
+    elif self['lemma'] in ('dtí', 'leor'):
+      return [Constraint('None', 'By convention, there is no Number feature in set phrases “go dtí” or “go leor”')]
     else:
       return [Constraint('Sing|Plur', 'All nouns except verbal nouns, abbreviations, and foreign words must have a Number feature')]
 
