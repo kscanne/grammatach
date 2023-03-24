@@ -570,7 +570,17 @@ class GAToken(GoidelicToken):
 
     # handle idir separately since we need to check coordination, no "pr"
 
-    # 10.2.6
+    # 10.2.6 - similar to 10.2.10 below
+    if self.has('Definite','Def') and self.has('Number','Sing') and not self.hasPrecedingDependent():
+      if self.isObjectOfGenitivePrep():
+        if pr['lemma']=='chun':
+          return [Constraint('!Len','10.2.6.e1: Normally lenite definite noun after a preposition that triggers the genitive, but not after “chun”')]
+        else:
+          # not noted in 10.2.6, but see 10.2.10
+          if self.demutatedToken() in ['San','Dé']:
+            return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
+          else:
+            return [Constraint('Len','10.2.6: Should lenite a definite noun after a preposition that triggers genitive position')]
 
     # 10.2.7; use head not predecessor for "tuairisc pharlaiminte agus phobail"
     hd = self.getHead()
@@ -647,7 +657,7 @@ class GAToken(GoidelicToken):
     # which should probably not be marked Definite=Def as a solution
     # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
     if self.has('Definite','Def') and self.has('Number','Sing') and not self.hasPrecedingDependent():
-      if (self.isGenitiveOfHead() and self['head']<self['index']) or self.isObjectOfGenitivePrep() or self.isObjectFollowingVerbalNoun():
+      if (self.isGenitiveOfHead() and self['head']<self['index']) or self.isObjectFollowingVerbalNoun():
         if self.demutatedToken() in ['San','Dé']:
           return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
         else:
