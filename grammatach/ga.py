@@ -131,6 +131,11 @@ class GAToken(GoidelicToken):
   def admitsPrefixH(self):
     return self.hasInitialVowel()
 
+  # ag, as, de, do, gan, etc. but not "don", "lena", "leo"
+  # Also includes first part of compound preps... "faoi" in "faoi bhráid", etc.
+  def isSimplePreposition(self):
+    return self['upos']=='ADP' and not self.has('Poss','Yes') and self['Person']==None and self['Foreign']==None and self['PronType']==None
+
   def hasPrefixH(self):
     return re.match(r'h-?[aeiouáéíóúAEIOUÁÉÍÓÚ]', self['token']) and self.admitsPrefixH()
 
@@ -515,7 +520,7 @@ class GAToken(GoidelicToken):
     # 10.2.5 following prepositions
     if pr['upos']=='PART' and pr.has('PartType','Inf') and pr['lemma']=='a' and self.has('VerbForm','Inf'):
       return [Constraint('Len', '10.2.5.a: Always lenite a verbal noun after the preposition “a”')]
-    if pr['upos']=='ADP' and not pr.has('Poss','Yes'):
+    if pr.isSimplePreposition():
       if pr['lemma'] in ['de', 'do', 'a', 'ionsar', 'mar', 'ó', 'roimh', 'trí']:
         return [Constraint('Len', '10.2.5.a: Always lenite after certain simple prepositions')]
       elif self.isInPhrase(('go','céile')) or self.isInPhrase(('le','céile')):
@@ -1114,6 +1119,7 @@ class GAToken(GoidelicToken):
     else:
       return [Constraint('None', 'Not sure why this pronoun has a gender')]
 
+  # TODO: gur
   def predictMoodAUX(self):
     tok = self.demutatedToken().lower()
     if tok in ["b'", 'ba']:
