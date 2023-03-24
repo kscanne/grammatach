@@ -140,7 +140,7 @@ class GAToken(GoidelicToken):
     return re.match(r'h-?[aeiouáéíóúAEIOUÁÉÍÓÚ]', self['token']) and self.admitsPrefixH()
 
   def hasPrecedingDependent(self):
-    return any(t['index']<self['index'] and t['deprel']!='case' for t in self.getDependents())
+    return any(t['index']<self['index'] and t['deprel'] not in ['case','cc'] for t in self.getDependents())
 
   def precedingCen(self):
     head = self.getHead()
