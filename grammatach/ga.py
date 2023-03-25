@@ -466,9 +466,9 @@ class GAToken(GoidelicToken):
           return [Constraint('Len', '10.2.1.b: Must lenite a masculine singular noun in the genitive after the definite article')]
         elif noun.isInDativePP():
           if self.isEclipsable():  # i.e. not initial "m"
-            return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite in the dative after the definite article')]
+            return [Constraint('Ecl', '10.2.1.c (An Córas Lárnach): Should eclipse in the dative after the definite article'), Constraint('Len', '10.2.1.c (Córas an tSéimhithe): Should lenite in the dative after the definite article')]
           else:
-            return [Constraint('!Len|Len', '10.2.1.c: Can either lenite an initial m in the dative after the definite article or leave it unchanged')]
+            return [Constraint('!Len', '10.2.1.c (An Córas Lárnach): Should not lenite an initial m in the dative after the definite article'), Constraint('Len', '10.2.1.c (Córas an tSéimhithe): Should lenite an initial m in the dative after the definite article')]
         elif noun.has('Case','Nom') and noun.has('Gender','Fem') and \
            noun.has('Number','Sing'):
           return [Constraint('Len', '10.2.1.a: Must lenite feminine singular after the definite article')]
@@ -476,9 +476,9 @@ class GAToken(GoidelicToken):
         return [Constraint('Len', '10.2.1.c: Always lenite after sa, san, den, or don')]
       else: # remainder are examples like "faoin", "fén", "ón"
         if self.isEclipsable():  # i.e. not initial "m"
-          return [Constraint('Ecl|Len', '10.2.1.c: Can either eclipse or lenite after faoin, ón, etc.')]
+          return [Constraint('Ecl', '10.2.1.c (An Córas Lárnach): Should eclipse after faoin, ón, etc.'), Constraint('Len', '10.2.1.c (Córas an tSéimhithe): Should lenite after faoin, ón, etc.')]
         else:
-          return [Constraint('!Len|Len', '10.2.1.c: Can either lenite an initial m after faoin, ón, etc. or leave it unchanged')]
+          return [Constraint('!Len', '10.2.1.c (An Córas Lárnach): Should not lenite an initial m after faoin, ón, etc.'), Constraint('Len', '10.2.1.c (Córas an tSéimhithe): Should lenite an initial m after faoin, ón, etc.')]
 
     # 10.2.2
     if self.has('Case', 'Voc') and any(t.has('PartType','Voc') for t in self.getDependents()):
@@ -1607,6 +1607,8 @@ class GAToken(GoidelicToken):
       else:
         return [Constraint('None', '10.9.1: Not sure why this noun has a prefix t')]
     elif self.hasLenitableS():
+      pr = self.getPredecessor()
+      prToken = pr['token'].lower()
       if self.has('Number','Sing') and self.has('Gender','Fem') and \
            self.has('Case','Nom') and \
           (self.anyPrecedingDefiniteArticle() or self.precedingCen()):
@@ -1614,6 +1616,8 @@ class GAToken(GoidelicToken):
       elif self.has('Number','Sing') and self.has('Gender','Masc') and \
            self.has('Case','Gen') and self.precedingDefiniteArticle():
         return [Constraint('TPref', '10.10.1: Should have prefix t before genitive masculine noun after an article')]
+      elif self.anyPrecedingDefiniteArticle() and self.has('Case','Nom') and self.has('Gender','Masc') and self.isInDativePP() and pr.has('Number','Sing') and prToken!='na':
+        return [Constraint('!TPref', '1.4.2 (An Córas Lárnach): Should not add prefix t to a masculine noun with an initial s'), Constraint('TPref', '1.7.4 (Córas an tSéimhithe): Should add prefix t to a masculine noun with an initial s in the dative')]
       else:
         # TODO: explicit exceptions if preceding word is "aon" or "céad"
         # (ordinal) for clearer error messages
