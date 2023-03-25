@@ -518,7 +518,7 @@ class GAToken(GoidelicToken):
           return [Constraint('Len', '10.2.4.c: Lenite after numbers 3-6')]
 
     # 10.2.5 following prepositions
-    if pr['upos']=='PART' and pr.has('PartType','Inf') and pr['lemma']=='a' and self.has('VerbForm','Inf'):
+    if pr['upos']=='PART' and pr.has('PartType','Inf') and pr['lemma'] in ['a','do'] and self.has('VerbForm','Inf'):
       return [Constraint('Len', '10.2.5.a: Always lenite a verbal noun after the preposition “a”')]
     if pr.isSimplePreposition():
       if pr['lemma'] in ['de', 'do', 'a', 'ionsar', 'mar', 'ó', 'roimh', 'trí']:
@@ -599,7 +599,7 @@ class GAToken(GoidelicToken):
           return [Constraint('Len', '10.2.7.c.e2: Lenite a genitive plural in the set phrase “clann mhac”')]
         else:
           return [Constraint('!Len', '10.2.7.c: Do not lenite a genitive plural noun after a feminine noun')]
-      if hd['lemma'] in ['barraíocht', 'breis', 'díobháil', 'easpa', 'iomarca', 'roinnt']:
+      if hd['lemma'] in ['barraíocht', 'breis', 'cuid', 'díobháil', 'easpa', 'iomarca', 'roinnt']:
         return [Constraint('!Len', '10.2.7.d: Do not lenite a genitive noun after a feminine noun that expresses an indefinite quantity')]
       # TODO 10.2.7.e,f,g :(  Need big lists....
 
@@ -838,8 +838,8 @@ class GAToken(GoidelicToken):
     # "dúshlán na seacht dtúr"
     if head.isNominal() and self['lemma']=='an':
       if head.has('Case','Gen'):
-        return [Constraint('Gen', 'Article before genitive singular noun should have Case=Gen')]
-    return [Constraint('None', 'Not sure why this word has the Case feature')]
+        return [Constraint('Gen', 'Article before any genitive noun should have Case=Gen')]
+    return [Constraint('None', 'Not sure why this determiner has the Case feature')]
 
   def predictCaseNOUN(self):
     return [Constraint('Nom|Gen|Dat|Voc|None', 'placeholder...')]
@@ -868,6 +868,9 @@ class GAToken(GoidelicToken):
       return [Constraint('Def', '3.1.2.e: Needs Definite=Def because of the number that follows')]
     if self.hasPropagatingDefiniteDependent():
       return [Constraint('Def', '3.1.2.f: Needs Definite=Def because of definite nominal dependent')]
+    hd = self.getHead()
+    if self.has('PrepForm','Cmpd') and self['lemma']!='dtí' and hd['deprel']=='case' and hd.getHead().has('Definite','Def'):
+      return [Constraint('Def', '3.1.2.f: Noun in compound preposition needs Definite=Def because of definite nominal dependent')]
     if self.has('Case','Voc') or self['deprel']=='vocative':
       return [Constraint('Def', '3.1.2.g: All vocatives need Definite=Def')]
     # if we decide to keep Definite=Ind, then make this !Def?
