@@ -700,7 +700,7 @@ class GAToken(GoidelicToken):
     lemma = self['lemma']
     if lemma=='abair':
       return [Constraint('!Len', '10.4.2.b: Forms of the verb “abair” are never lenited')]
-    if lemma=='bí' and self['token'][0]=='t':
+    if lemma=='bí' and self['token'][0].lower()=='t':
       return [Constraint('!Len', '10.4: Do not lenite “tá”, “táimid”, etc.')]
     if self.has('Tense','Past') and self.has('Mood','Ind'):
       if self.has('Person','0'):
