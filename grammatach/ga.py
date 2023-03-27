@@ -599,9 +599,12 @@ class GAToken(GoidelicToken):
           return [Constraint('Len', '10.2.7.c.e2: Lenite a genitive plural in the set phrase “clann mhac”')]
         else:
           return [Constraint('!Len', '10.2.7.c: Do not lenite a genitive plural noun after a feminine noun')]
-      if hd['lemma'] in ['barraíocht', 'breis', 'cuid', 'díobháil', 'easpa', 'iomarca', 'roinnt']:
+      if hd['lemma'] in ['barraíocht', 'breis', 'cuid', 'díobháil', 'díth', 'easpa', 'éagmais', 'iomarca', 'roinnt', 'uireasa']:
         return [Constraint('!Len', '10.2.7.d: Do not lenite a genitive noun after a feminine noun that expresses an indefinite quantity')]
-      # TODO 10.2.7.e,f,g :(  Need big lists....
+      # TODO 10.2.7.e,f :(  Need big lists....
+
+      if hd['lemma'] in gadata.abstractFeminine:
+        return [Constraint('!Len', '10.2.7.g: Do not lenite a genitive noun after an abstract feminine noun that is based on an adjective')]
 
       # 10.2.7.h handled after this block since verbal noun has no Case
 

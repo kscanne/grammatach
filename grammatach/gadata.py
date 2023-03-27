@@ -232,3 +232,16 @@ prepositionsWithArticle = frozenset([
   'san',
   'sna'
 ])
+
+abstractFeminine = frozenset([
+  'áilleacht',
+  'airde',
+  'breáthacht',
+  'dílseacht',
+  'fairsinge',
+  'finne',
+  'láidreacht',
+  'óige',
+  'sábháilteacht',
+  'saoirse',
+])
