@@ -194,9 +194,12 @@ class GAToken(GoidelicToken):
   def isGodti(self):
     return self['lemma']=='go' and self.has('PrepForm','Cmpd') and any(t['lemma']=='dtí' for t in self.getDependents())
 
-  def isObjectOfGenitivePrep(self):
+  def isObjectOfGenitivePrepHelp(self):
     genPreps = ['chun','cois','dála','fearacht','timpeall','trasna']
     return self.isNominal() and self['VerbForm']==None and any(t['upos']=='ADP' and t.getDeprel()=='case' and not t.isGodti() and (t.has('PrepForm','Cmpd') or t['lemma'] in genPreps) for t in self.getDependents())
+
+  def isObjectOfGenitivePrep(self):
+    return self.isObjectOfGenitivePrepHelp() or (self['deprel']=='conj' and self.getHead().isObjectOfGenitivePrep())
 
   # First any is for "Airteagal III" or "rang 5"
   # Second any is for stuff like "bus a dó", "rang a 5"
@@ -207,7 +210,7 @@ class GAToken(GoidelicToken):
   # *except* for cases like "rang Gaeilge", "fear Gaeltachta", etc.
   def hasPropagatingDefiniteDependent(self):
     exceptions = ['Gaeilge','Béarla','Gaeltacht','Eabhrais','Fraincis','Breatnais']
-    return any(t.isGenitiveOfHead() and t.has('Definite','Def') and (t['lemma'] not in exceptions or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
+    return any(t.isGenitiveOfHead() and t['deprel']!='conj' and t.has('Definite','Def') and (t['lemma'] not in exceptions or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
 
   # not necessarily preceding; e.g. "sa dá chogadh"
   def anyDependentDefiniteArticle(self):
@@ -302,8 +305,11 @@ class GAToken(GoidelicToken):
   # where the head points somewhere other than "aghaidh"
   # Also note this doesn't imply the word is genitive in form, e.g. if it
   # is definite ("seoladh" in "dáta sheoladh an leabhair")
-  def isGenitiveOfHead(self):
+  def isGenitiveOfHeadHelp(self):
     return self.isNominal() and self['deprel']=='nmod' and not self.isInPP()
+
+  def isGenitiveOfHead(self):
+    return self.isGenitiveOfHeadHelp() or (self['deprel']=='conj' and self.getHead().isGenitiveOfHead())
 
   def isGenitivePosition(self):
     return self.isGenitiveOfHead() or self.isObjectOfGenitivePrep()
@@ -637,7 +643,7 @@ class GAToken(GoidelicToken):
 
 
     # 10.2.8 following slender plurals
-    if hd.isNominal() and hd.has('Case','Nom') and hd.has('Number','Plur') and hd.hasSlenderFinalConsonant() and self.has('Case','Gen') and self.has('Number','Sing') and not self.has('Definite','Def'):
+    if hd.isNominal() and hd.has('Case','Nom') and hd.has('Number','Plur') and hd.hasSlenderFinalConsonant() and self.has('Case','Gen') and self.has('Number','Sing') and not self.anyPrecedingDefiniteArticle():
       if hd.hasFinalDental() and self.hasInitialDental():
         return [Constraint('!Len', '10.2.8.a: Do not lenite an initial dental after a plural noun ending in a slender dental')]
       if self.hasInitialF():
@@ -660,11 +666,12 @@ class GAToken(GoidelicToken):
     # which should probably not be marked Definite=Def as a solution
     # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
     if self.has('Definite','Def') and self.has('Number','Sing') and not self.hasPrecedingDependent():
-      if (self.isGenitiveOfHead() and self['head']<self['index']) or self.isObjectFollowingVerbalNoun():
+      if (self.isGenitiveOfHead() and hd['index']<self['index']) or self.isObjectFollowingVerbalNoun():
         if self.demutatedToken() in ['San','Dé']:
           return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
         else:
-          return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
+          if hd['lemma'] != 'Dé' and self['lemma'] not in ['Béarla', 'Feirste', 'Gaeilge', 'Gaeltacht']:
+            return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
 
     # 10.2.11 Surnames
     if pr.has('PartType','Pat'):
@@ -694,7 +701,6 @@ class GAToken(GoidelicToken):
 
     return [Constraint('!Len','10.2: Not sure why this word is lenited')]
 
-  # TODO: need to handle initial m,s in eclipsed context too :( :(
   def predictVerbLenition(self, eclipsisConstraints):
     if not self.isLenitable():
       return [Constraint('!Len', 'Cannot lenite an unlenitable letter')]
@@ -718,6 +724,8 @@ class GAToken(GoidelicToken):
           return [Constraint('Len', '10.4.1.a: This past tense verb should be lenited')]
     if self.has('Aspect','Imp') and self.has('Tense','Past'):
       return [Constraint('Len', '10.4.1.a: This imperfect verb should be lenited')]
+    if lemma=='faigh' and self.has('Tense','Fut') and self['token'].lower()[0]=='g':
+      return [Constraint('Len', 'Independent future of “faigh” is lenited')]
     if self.has('Mood','Cnd'):
       return [Constraint('Len', '10.4.1.a: This conditional verb should be lenited')]
     pr = self.getPredecessor()
@@ -730,7 +738,7 @@ class GAToken(GoidelicToken):
       return [Constraint('Len', '10.4.1.b: Lenite after the conjunction “má” or “ó”')]
     if pr.isLenitingVerbalParticle():
       return [Constraint('Len', '10.4.2: Verb is lenited after this verbal particle')]
-    return [Constraint('!Len','10.2: Not sure why this noun is lenited')]
+    return [Constraint('!Len','10.4: Not sure why this verb is lenited')]
 
   # TODO: ní haitheanta do (10.11.8.b)
   def predictAdjectivePrefixH(self):
@@ -848,11 +856,60 @@ class GAToken(GoidelicToken):
     return [Constraint('Nom|Gen|Dat|Voc|None', 'placeholder...')]
     if self.getUltimateDeprel()=='vocative':
       return [Constraint('Voc', 'Should have feature Case=Voc')]
-    # TODO: words with no case, Abbr, Foreign?
-    #noCase = ['ann', 'céile', 'dála', 'dea', 'doh', '(e)amar', 'foláir', 'gach', 'go', 'leith', 'leor', 'márach', 'scan', 'scun', 'seach', 'sul', 'té', 'thuilleadh', 'tólamh', 'uile']
+
+    if self.has('Abbr','Yes') or self.has('Foreign','Yes'):
+      return [Constraint('None', 'Abbreviations and foreign words generally do not have a Case feature')]
+
+    # some have Gen; are these true vns
+    if self['VerbForm']!=None:
+      return [Constraint('None', 'Verbal nouns generally do not have a Case feature')]
+
+    if self['lemma'] in ['ann', 'dála', 'foláir', 'leor', 'márach', 'scan', 'scun', 'seach', 'té', 'tólamh', 'uile']:
+      return [Constraint('None', 'This is one of a small number of nouns that are not marked for Case')]
+
+    # before we get into Gen after compound preps, mark noun after "go dtí"
+    if any(t.isGodti() and t['deprel']=='case' for t in self.getDependents()):
+      return [Constraint('Nom', 'Noun should be nominative after “go dtí”')]
+
+    # nominative in form after numbers, even in genitive case
+    if any(t['upos']=='NUM' and t['deprel']=='nummod' and t['index']<self['index'] for t in self.getDependents()):
+      return [Constraint('Nom', 'Noun should be nominative after a number')]
+
+    if self.isObjectOfGenitivePrep():
+      if self.hasPropagatingDefiniteDependent():
+        return [Constraint('Nom', 'Noun should be nominative in form despite being in genitive position after this preposition')]
+      else:
+        return [Constraint('Gen', 'Noun should be in the genitive case after this preposition')]
+
+    if self.isInPP():
+      return [Constraint('Nom|Dat', 'Noun should be in nominative or dative case after this preposition')]
+
+    # propagate these Dat/Gen through coordinations: "gan ord ná eagar"?
+
+    if self['lemma']=='déag':
+      return [Constraint('Nom', 'The word “déag” always gets Case=Nom')]
+
+    if self.isGenitiveOfHead():
+      if self.hasPropagatingDefiniteDependent():
+        return [Constraint('Nom', 'Noun should be nominative in form despite being genitive in function')]
+      else:
+        if self.getHead()['lemma'] == 'cúpla':
+          return [Constraint('Nom', 'Noun should be in nominative following “cúpla”')]
+        else:
+          return [Constraint('Gen', 'This noun modifies another noun and should therefore be in the genitive case')]
+
+    # then set genitives if it's an object of VN
+    if self.getHead().isVerbalNounWithAg() and self['deprel']=='obj':
+      if self.hasPropagatingDefiniteDependent():
+        return [Constraint('Nom', 'Noun should be nominative in form despite being genitive in function')]
+      else:
+        return [Constraint('Gen', 'The object of a verbal noun with “ag” should be in the genitive case')]
+
+    return [Constraint('Nom', 'Noun should be in nominative by default')]
 
   def predictCasePROPN(self):
-    return self.predictCaseNOUN()
+    return [Constraint('Nom|Gen|Dat|Voc|None', 'placeholder...')]
+    #return self.predictCaseNOUN()
 
   def predictDefiniteDET(self):
     lemma = self['lemma']
