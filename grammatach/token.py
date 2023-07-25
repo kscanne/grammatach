@@ -107,6 +107,7 @@ class UDToken:
   def setPredecessor(self, predToken):
     self._predecessor = predToken
 
+  # returns None if self is the root token, otherwise != None
   def getPredecessor(self):
     return self._predecessor
 

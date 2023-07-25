@@ -933,7 +933,6 @@ class GAToken(GoidelicToken):
       return [Constraint('Def', '3.1.2.f: Noun in compound preposition needs Definite=Def because of definite nominal dependent')]
     if self.has('Case','Voc') or self['deprel']=='vocative':
       return [Constraint('Def', '3.1.2.g: All vocatives need Definite=Def')]
-    # if we decide to keep Definite=Ind, then make this !Def?
     return [Constraint('None', '3.1: Not sure why this has the Definite feature')]
 
   def predictDefinitePROPN(self):
