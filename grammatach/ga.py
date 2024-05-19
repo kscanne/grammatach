@@ -416,6 +416,8 @@ class GAToken(GoidelicToken):
       #   or "cuma chomh socair" (train 2554)
       # TODO: need ultimate head "príosúnaigh Bheilgeacha agus Fhrancacha"
       # TODO: idir bheag agus mhór (not in CO... CB+corpus only)
+      # TODO: "tír mór"; set phrase in FGB, NEID, etc.
+      # TODO: "Inis Mór"
       # TODO: after beirt+gpl? CB+corpus
       if h.has('Gender','Fem') and h.has('Number','Sing'):
         if h.has('Case','Nom') or h.has('Case','Dat') or h.has('Case','Voc'):
@@ -463,10 +465,10 @@ class GAToken(GoidelicToken):
     prToken = pr['token'].lower()
 
     # 10.2.1
-    if pr!=None and self.anyPrecedingDefiniteArticle() and pr.has('Number','Sing') and prToken!='na':
+    if pr!=None and (self.anyPrecedingDefiniteArticle() or self.precedingCen()) and pr.has('Number','Sing') and prToken!='na':
       if self.hasInitialDental():
         return [Constraint('!Len', '10.2.1.e1: Do not lenite a noun or number beginning with d, t, or s after the definite article')]
-      if self.precedingDefiniteArticle():  # just "an"
+      if self.precedingDefiniteArticle() or self.precedingCen(): # an/cén only
         if noun.has('Case','Gen') and noun.has('Gender','Masc') and \
            noun.has('Number','Sing'):
           return [Constraint('Len', '10.2.1.b: Must lenite a masculine singular noun in the genitive after the definite article')]
@@ -500,7 +502,7 @@ class GAToken(GoidelicToken):
         return [Constraint('!Len','10.2.3.a: Never lenite after feminine possessive')]
     if pr['lemma'] in ['gach_uile', 'uile'] and pr['head']==self['index']:
       return [Constraint('Len','10.2.3.b: Always lenite after the adjective “uile”')]
-    if pr['lemma'] in ['aon', 'céad']:
+    if pr['lemma'] in ['achan', 'aon', 'céad', 'gach_aon']:
       if self.hasInitialDental():
         return [Constraint('!Len', '10.2.3.c.e1: Do not lenite a noun or number beginning with d, t, or s after “aon” or “céad”')]
       else:
@@ -546,6 +548,7 @@ class GAToken(GoidelicToken):
           return [Constraint('Len', '10.2.5.a: Always lenite after certain simple prepositions')]
       elif pr['lemma']=='ar':
         if self.demutatedToken().lower() in gadata.unlenitedAfterAr:
+          # TODO: two exceptions in CO: "ar ball loinge", "ar ball beag"
           if self.isQualifiedNoun():
             return [Constraint('Len', '10.2.5.b.e1: Lenite a noun after “ar” when it has an adjective or genitive noun dependent')]
           else:
@@ -1199,6 +1202,11 @@ class GAToken(GoidelicToken):
         return [Constraint('None', 'Past copula “ba” is not conditional; should not have a Mood feature')]
       else:
         return [Constraint('Cnd', 'Copula “ba”, if not past tense, is conditional, requiring Mood=Cnd')]
+    elif tok=='gur':
+      if self['Tense']!=None:
+        return [Constraint('None', 'Present or past copula “gur” is not conditional; should not have a Mood feature')]
+      else:
+        return [Constraint('Cnd', 'Copula “gur”, if not present or past tense, is conditional, requiring Mood=Cnd')]
     elif tok=='an':
       return [Constraint('Int', 'Copula “an” is an interrogative; requires Mood=Int')]
     elif tok=='nach':
@@ -1681,9 +1689,10 @@ class GAToken(GoidelicToken):
       elif self.anyPrecedingDefiniteArticle() and self.has('Case','Nom') and self.has('Gender','Masc') and self.isInDativePP() and pr.has('Number','Sing') and prToken!='na':
         return [Constraint('!TPref', '1.4.2 (An Córas Lárnach): Should not add prefix t to a masculine noun with an initial s'), Constraint('TPref', '1.7.4 (Córas an tSéimhithe): Should add prefix t to a masculine noun with an initial s in the dative')]
       else:
-        # TODO: explicit exceptions if preceding word is "aon" or "céad"
-        # (ordinal) for clearer error messages
-        return [Constraint('None', '10.10: Not sure why this noun has a prefix t')]
+        if pr['lemma'] in ['aon','céad']:
+          return [Constraint('None', '10.10.2.b: No prefix t following “aon” or “céad”')]
+        else:
+          return [Constraint('None', '10.10: Not sure why this noun has a prefix t')]
     else:
       return [Constraint('None', '10.9/10: Prefix t on a word that cannot admit one')]
 
