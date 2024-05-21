@@ -228,10 +228,12 @@ class GAToken(GoidelicToken):
            (self['upos']=='SCONJ' and t in ['munar','murar','sarar','sular'])
 
   # a, ina, lena, etc. but *not* past tense ar, inar, lenar, etc.
-  # Also includes the PRON case: "sin a bhfuil agam"; note we can't use
-  # self.has('Tense','Past') to discard "duine ar chuir..." b/c of PRON case
+  # Also includes the PRON case: "sin a bhfuil agam" and the PRON case
+  # when fused with a preposition (tagged ADP) "eolas faoina bhfuil ar siúl";
+  # note we can't use self.has('Tense','Past') to discard
+  # "duine ar chuir..." b/c of PRON case
   def isEclipsingRelativizer(self):
-    return self.has('PronType','Rel') and not re.search('r$', self['token'].lower()) and (self.has('Form','Indirect') or self['upos']=='PRON')
+    return self.has('PronType','Rel') and not re.search('r$', self['token'].lower()) and (self.has('Form','Indirect') or self['upos'] in ['ADP','PRON'])
 
   # Eclipsed forms after "ní": "ní bhfuair", "ní bhfaighidh", "ní bhfaighfeá"...
   def isEclipsedFaigh(self):
@@ -379,9 +381,12 @@ class GAToken(GoidelicToken):
       return [Constraint('Ecl', '10.6.5: Should be eclipsed in set phrase “cá bhfios”')]
     return [Constraint('!Ecl','10.6: Not sure why this is eclipsed')]
 
+  # unlike other "predict" functions, this will return an "Ecl" constraint
+  # even in case the word starts with m/s/n/l/r since we want that
+  # info to block lenition on initial m/s.
   def predictVerbEclipsis(self):
-    if not self.isEclipsable():
-      return [Constraint('!Ecl', '10.8: Not an eclipsable initial letter')]
+    #if not self.isEclipsable():
+    #  return [Constraint('!Ecl', '10.8: Not an eclipsable initial letter')]
     pr = self.getPredecessor()
     if pr==None:
       return [Constraint('!Ecl', '10.8: Sentence initial verb cannot be eclipsed')]
@@ -704,11 +709,9 @@ class GAToken(GoidelicToken):
 
     return [Constraint('!Len','10.2: Not sure why this word is lenited')]
 
-  def predictVerbLenition(self, eclipsisConstraints):
+  def predictVerbLenition(self):
     if not self.isLenitable():
       return [Constraint('!Len', 'Cannot lenite an unlenitable letter')]
-    if any(c.isSatisfied(['Ecl']) for c in eclipsisConstraints):
-      return [Constraint('!Len', 'Should not lenite in an eclipsis context')]
     lemma = self['lemma']
     if lemma=='abair':
       return [Constraint('!Len', '10.4.2.b: Forms of the verb “abair” are never lenited')]
@@ -1145,8 +1148,17 @@ class GAToken(GoidelicToken):
 
   # Ecl, Len, HPref, Emp, plus some with Direct (atá + relative forms)
   def predictFormVERB(self):
-    ans = self.predictVerbEclipsis()
-    ans.extend(self.predictVerbLenition(ans))
+    ans = []
+    tempans = self.predictVerbEclipsis()
+    if any(c.isSatisfied(['Ecl']) for c in tempans):
+      ans.append(Constraint('!Len', 'Should not lenite in an eclipsis context'))
+    else:
+      ans.extend(self.predictVerbLenition())
+    if self.isEclipsable():
+      ans.extend(tempans)
+    else:
+      ans.append(Constraint('!Ecl', '10.8: Not an eclipsable initial letter'))
+
     ans.extend(self.predictEmphasis())
     if self.has('PronType','Rel') and re.match(r'at[aá]',self['token'].lower()):
       ans.append(Constraint('Direct', 'Anything resembling atá should have direct relative feature Form=Direct'))
