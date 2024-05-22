@@ -1131,8 +1131,8 @@ class GAToken(GoidelicToken):
       ans.append(Constraint('Len', 'Should be lenited form “thú” when it is an object'))
     elif self['lemma']=='ceachtar':
       ans.extend(self.predictFormNOUN())
-    elif self['lemma']=='sin' and pr!=None and pr['token'].lower()=='ó':
-      ans.append(Constraint('Len', 'Should be lenited in set phrase “ó shin”, or else “uaidh sin”'))
+    elif self['lemma']=='sin' and pr!=None and pr['token'].lower() in ['o','ó']:
+      ans.append(Constraint('Len', 'Should be lenited in set phrase “ó shin”, or else should be “uaidh sin”'))
     else:
       ans.append(Constraint('!Len', 'Not sure why this pronoun is lenited'))
     return ans
