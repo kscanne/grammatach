@@ -499,10 +499,13 @@ class GAToken(GoidelicToken):
 
     # 10.2.3
     if pr.has('Poss','Yes'):
-      if pr['lemma']=='mo' or pr.has('Gender','Masc'):
-        return [Constraint('Len','10.2.3.a: Always lenite after possessive “mo” or singular masculine “a”')]
-      elif pr['lemma'] in ['do','i_do'] and pr.has('Person','2'):
+      # don't use lemma=='mo' because of stuff like lem', im' (ADPs)
+      if pr.has('Number','Sing') and pr.has('Person','1'):
+        return [Constraint('Len','10.2.3.a: Always lenite after possessive “mo”')]
+      elif pr.has('Number','Sing') and pr.has('Person','2'):
         return [Constraint('Len','10.2.3.a: Always lenite after possessive “do”')]
+      elif pr.has('Gender','Masc'):
+        return [Constraint('Len','10.2.3.a: Always lenite after singular masculine possessive “a”')]
       elif pr.has('Gender','Fem'):
         return [Constraint('!Len','10.2.3.a: Never lenite after feminine possessive')]
     if pr['lemma'] in ['gach_uile', 'uile'] and pr['head']==self['index']:
