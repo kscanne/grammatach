@@ -207,10 +207,9 @@ class GAToken(GoidelicToken):
     return any(t['upos']=='NUM' and t['index']==self['index']+1 and t['deprel']=='nmod' for t in self.getDependents()) or any(t['lemma']=='a' and t['upos']=='PART' and t.has('PartType','Num') and t['index']==self['index']+1 and t.getHead()['upos']=='NUM' and t.getHead()['deprel']=='nmod' and t.getHead()['index']==self['index']+2 for t in self.getDependents())
 
   # nouns governing a definite noun in the genitive should be definite
-  # *except* for cases like "rang Gaeilge", "fear Gaeltachta", etc.
+  # *except* for cases like "rang Gaeilge", "leabhar Béarla", etc.
   def hasPropagatingDefiniteDependent(self):
-    exceptions = ['Gaeilge','Béarla','Gaeltacht','Eabhrais','Fraincis','Breatnais']
-    return any(t.isGenitiveOfHead() and t['deprel']!='conj' and t.has('Definite','Def') and (t['lemma'] not in exceptions or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
+    return any(t.isGenitiveOfHead() and t['deprel']!='conj' and t.has('Definite','Def') and (t['lemma'] not in gadata.languages or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
 
   # not necessarily preceding; e.g. "sa dá chogadh"
   def anyDependentDefiniteArticle(self):
@@ -316,6 +315,16 @@ class GAToken(GoidelicToken):
   def isGenitivePosition(self):
     return self.isGenitiveOfHead() or self.isObjectOfGenitivePrep()
 
+  def isIndefinitePROPN(self):
+    #return self['lemma'] in gadata.daysOfTheWeek or \
+    #       self['lemma'] in gadata.months or \
+    #       self['lemma'] in gadata.languages or \
+    return self['lemma'] in gadata.logainmWithArticle or \
+           self['lemma'] in gadata.abbrWithArticle or \
+           self['lemma'] in gadata.indefiniteSurnames or \
+           self['lemma'] in gadata.people or \
+           self['lemma'] in gadata.properButIndefinite
+
   ####################### END BOOLEAN METHODS ##########################
 
   def noConstraint(self):
@@ -415,12 +424,12 @@ class GAToken(GoidelicToken):
       return [Constraint('!Len', '10.3: Cannot lenite an unlenitable letter')]
     # 10.3.1
     if self.isAttributiveAdjective():
-      h = self.getHead()
+      # Need ultimate head here: "príosúnaigh Bheilgeacha agus Fhrancacha"
+      h = self.getUltimateHead()
       # TODO: exception "saor in aisce", "cothrom le dáta", srl. 10.3.1.e1
       # TODO: tuairisc réasúnta cuimsitheach... ADV blocks lenition?
       #   or "cuma chomh socair" (train 2554)
-      # TODO: need ultimate head "príosúnaigh Bheilgeacha agus Fhrancacha"
-      # TODO: idir bheag agus mhór (not in CO... CB+corpus only)
+      # TODO: "idir bheag agus mhór (not in CO... CB+corpus only)
       # TODO: "tír mór"; set phrase in FGB, NEID, etc.
       # TODO: "Inis Mór"
       # TODO: after beirt+gpl? CB+corpus
@@ -452,11 +461,12 @@ class GAToken(GoidelicToken):
     # 10.3.4 déag agus fichead... tagged as NOUN in UD
     # 10.3.5 in compounds (ollmhór, etc.)
 
-    # TODO: ní ba X (fixed), or ever just "ba mheasa" PartType=Comp
+    # note case lemma=='ba'; that's current annotation for "ní ba" (fixed)
     # 10.3.6 After copula:
     pr = self.getPredecessor()
-    if pr!=None and pr.isCopula() and (pr.has('Tense','Past') or pr.has('Mood','Cnd')):
-      return [Constraint('Len', '10.3.6: Adjective is lenited after past or conditional copula')]
+    if pr!=None:
+      if (pr.isCopula() and (pr.has('Tense','Past') or pr.has('Mood','Cnd'))) or pr['lemma']=='ba':
+        return [Constraint('Len', '10.3.6: Adjective is lenited after past or conditional copula')]
     return [Constraint('!Len', '10.3: Not sure why this adjective is lenited')]
 
   # also called for NUM's that precede the NOUN they modify
@@ -681,7 +691,7 @@ class GAToken(GoidelicToken):
         if self.demutatedToken() in ['San','Dé']:
           return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
         else:
-          if hd['lemma'] != 'Dé' and self['lemma'] not in ['Béarla', 'Feirste', 'Gaeilge', 'Gaeltacht']:
+          if hd['lemma'] != 'Dé' and self['lemma'] not in ['Béarla', 'Feirste', 'Fómhar', 'Gaeilge', 'Gaeltacht']:
             return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
 
     # 10.2.11 Surnames
@@ -945,7 +955,10 @@ class GAToken(GoidelicToken):
     return [Constraint('None', '3.1: Not sure why this has the Definite feature')]
 
   def predictDefinitePROPN(self):
-    return [Constraint('Def', '3.1.2.a: All proper nouns need Definite=Def')]
+    if self.isIndefinitePROPN():
+      return self.predictDefiniteNOUN()
+    else:
+      return [Constraint('Def', '3.1.2.a: Most proper nouns need Definite=Def')]
 
   def predictDegreeADJ(self):
     # if it's amod and not comp/sup, it gets features from NOUN => no Degree
@@ -1599,9 +1612,9 @@ class GAToken(GoidelicToken):
     if re.search('r$',tok) and not self.has('Mood','Sub'):
       return [Constraint('Past', 'Special past tense particles ending in -r should have Tense=Past feature')]
     # same condition as in predictVerbFormPART
-    if self['lemma']=='is' and re.match('b',tok) and \
+    if self['lemma']=='is' and re.search('b',tok) and \
        (self.has('PartType','Comp') or self.has('PartType','Sup')):
-      return [Constraint('Past', "Particle ”ba” in comparative or superlative constructions must have Tense=Past feature")]
+      return [Constraint('Past', "Particle ”ba” or “ab” in comparative or superlative constructions must have Tense=Past feature")]
     return [Constraint('None', 'Not sure why this particle has Tense feature')]
 
   # Pres or Past
@@ -1645,7 +1658,7 @@ class GAToken(GoidelicToken):
   # only Cop (and rarely)
   def predictVerbFormPART(self):
     # same condition as in predictTensePART
-    if self['lemma']=='is' and re.match('b',self['token'].lower()) and \
+    if self['lemma']=='is' and re.search('b',self['token'].lower()) and \
        (self.has('PartType','Comp') or self.has('PartType','Sup')):
       return [Constraint('Cop', 'Some comparative/superlative particles have VerbForm=Cop feature')]
     return [Constraint('None', 'Not sure why this particle has a VerbForm')]
