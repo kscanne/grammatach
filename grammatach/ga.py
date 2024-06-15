@@ -208,8 +208,10 @@ class GAToken(GoidelicToken):
 
   # nouns governing a definite noun in the genitive should be definite
   # *except* for cases like "rang Gaeilge", "leabhar Béarla", etc.
-  def hasPropagatingDefiniteDependent(self):
-    return any(t.isGenitiveOfHead() and t['deprel']!='conj' and t.has('Definite','Def') and (t['lemma'] not in gadata.languages or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
+  def hasPropagatingDefiniteDependent(self, after=-1):
+    if after==-1:
+      after=self['index']
+    return any(t['index']>after and t.isGenitiveOfHead() and t['deprel']!='conj' and t.has('Definite','Def') and (t['lemma'] not in gadata.languages or t.anyPrecedingDefiniteArticle()) for t in self.getDependents())
 
   # not necessarily preceding; e.g. "sa dá chogadh"
   def anyDependentDefiniteArticle(self):
@@ -595,6 +597,9 @@ class GAToken(GoidelicToken):
         else:
           return [Constraint('Len', '10.2.5.e: Lenite a noun or number after “thar”')]
 
+    # TODO: le thine, le thinidh, otherwise None (see "le chéile" above)
+    # TODO: add explicit rules for no lenition after ag, etc.
+    # for better error message
     # handle idir separately since we need to check coordination, no "pr"
 
     # 10.2.6 - similar to 10.2.10 below
@@ -683,8 +688,6 @@ class GAToken(GoidelicToken):
       return [Constraint('!Len','10.2.9: Do not lenite following a genitive')]
 
     # 10.2.10 Nom. in form, genitive in function
-    # TODO: except for cases like "fear Gaeltachta", "leagan Gaeilge", etc.
-    # which should probably not be marked Definite=Def as a solution
     # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
     if self.has('Definite','Def') and self.has('Number','Sing') and not self.hasPrecedingDependent():
       if (self.isGenitiveOfHead() and hd['index']<self['index']) or self.isObjectFollowingVerbalNoun():
@@ -950,6 +953,9 @@ class GAToken(GoidelicToken):
     hd = self.getHead()
     if self.has('PrepForm','Cmpd') and self['lemma']!='dtí' and hd['deprel']=='case' and hd.getHead().has('Definite','Def'):
       return [Constraint('Def', '3.1.2.f: Noun in compound preposition needs Definite=Def because of definite nominal dependent')]
+    # ceol agus litríocht na Gaeltachta => litríocht needs Definite=Def too
+    if self['deprel']=='conj' and hd.hasPropagatingDefiniteDependent(self['index']):
+      return [Constraint('Def', '3.1.2.f: Needs Definite=Def because of definite nominal dependent')]
     if self.has('Case','Voc') or self['deprel']=='vocative':
       return [Constraint('Def', '3.1.2.g: All vocatives need Definite=Def')]
     return [Constraint('None', '3.1: Not sure why this has the Definite feature')]
