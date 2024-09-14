@@ -149,7 +149,7 @@ class GAToken(GoidelicToken):
   # this really means preceding "sa", "san", "den", "don"
   # These must lenite a following noun according to C.O.
   def precedingLenitingPrepPlusArticle(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     # TODO: don't need any of these None checks... use pr.isRoot() ...
     if pr==None:
       return False
@@ -157,7 +157,7 @@ class GAToken(GoidelicToken):
 
   # this really means "an" or variants, not "na"
   def precedingDefiniteArticle(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return False
     tok = pr['token'].lower()
@@ -166,13 +166,13 @@ class GAToken(GoidelicToken):
   # preceding an/na but also sa, san, den, don, ón, faoin, etc.
   # used primarily for propagating definiteness
   def anyPrecedingDefiniteArticle(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return False
     return pr.has('PronType','Art')
 
   def isVerbalNounWithAg(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return False
     return pr['lemma']=='ag' and self.has('VerbForm','Vnoun')
@@ -261,7 +261,7 @@ class GAToken(GoidelicToken):
       return self['lemma'] in ['dó','trí','ceathair','cúig','sé','seacht','ocht','naoi','deich']
 
   def has2Thru19(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return False
     return pr['deprel']=='nummod' and pr.is2Thru19()
@@ -272,7 +272,7 @@ class GAToken(GoidelicToken):
     return re.search('^[3-6]$', self['lemma']) or self['lemma'] in ['trí','ceathair','cúig','sé']
 
   def has3Thru6(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return False
     return pr['deprel']=='nummod' and pr.is3Thru6()
@@ -281,7 +281,7 @@ class GAToken(GoidelicToken):
     return self['lemma'] in ['seacht','7','ocht','8','naoi','9','deich','10']
 
   def has7Thru10(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return False
     return pr['deprel']=='nummod' and pr.is7Thru10()
@@ -294,7 +294,7 @@ class GAToken(GoidelicToken):
   # at Goidelic level, basically checks for amod of a nominal
   # with some exceptions; Irish-specific exceptions added here
   def isAttributiveAdjective(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return False
     return super().isAttributiveAdjective() and \
@@ -339,7 +339,7 @@ class GAToken(GoidelicToken):
     if not self.isEclipsable():
       return [Constraint('!Ecl', '10.6: Not an eclipsable initial letter')]
     noun = self.getHead() if self['upos']=='NUM' else self
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('!Ecl', '10.6: Never eclipse a noun or number at the beginning of a sentence')]
     prToken = pr['token'].lower()
@@ -363,7 +363,7 @@ class GAToken(GoidelicToken):
         return [Constraint('Len','Lenite “chéile” in various prepositional phrases')]
       else:
         return [Constraint('Ecl','10.6.2: Should be eclipsed by preceding plural possessive')]
-    if prToken=='dhá' and pr.getPredecessor()!=None and pr.getPredecessor().isPluralPossessive():
+    if prToken=='dhá' and pr.getRealPredecessor()!=None and pr.getRealPredecessor().isPluralPossessive():
       return [Constraint('Ecl','10.6.2.e2: Should be eclipsed by plural possessive + dhá')]
     if pr['deprel']=='nummod' and pr.is7Thru10():
       if self['lemma'] in ['cent', 'euro', 'déag']:
@@ -398,18 +398,18 @@ class GAToken(GoidelicToken):
   def predictVerbEclipsis(self):
     #if not self.isEclipsable():
     #  return [Constraint('!Ecl', '10.8: Not an eclipsable initial letter')]
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('!Ecl', '10.8: Sentence initial verb cannot be eclipsed')]
     prToken = pr['token'].lower()
     # TODO: ADP "faoina ndearna", "gáire faoina ndúirt sé", 'dá bhfuil agam'
     if pr.isEclipsingRelativizer():
       return [Constraint('Ecl', '10.8.1: Should be eclipsed by preceding verbal particle introducting a relative clause')]
-    if (pr.has('PartType','Vb') and prToken in ['go','nach']) or \
-       (pr.has('PartType','Cmpl') and prToken in ['go','nach']) or \
+    if (pr.has('PartType','Vb') and prToken in ['go','gu','nach']) or \
+       (pr.has('PartType','Cmpl') and prToken in ['go','gu','nach']) or \
        (pr['upos']=='ADV' and prToken=='cá') or \
        (pr['upos']=='SCONJ' and \
-           prToken in ['dá','go','mara','muna','mura','sula']):
+           prToken in ['dá','go','gu','mara','muna','mura','sula']):
       return [Constraint('Ecl', '10.8.2.a: Should be eclipsed by preceding verbal particle')]
     if pr.has('PartType','Vb') and prToken=='an':
       if self.hasInitialVowel():
@@ -447,7 +447,7 @@ class GAToken(GoidelicToken):
           return [Constraint('!Len', '10.3.1.c.e1: Do not lenite adjectives after “caoirigh”')]
         else:
           return [Constraint('Len', '10.3.1.c: Adjective is lenited after a nominative plural noun ending in a slender consonant')]
-      hpr = h.getPredecessor()
+      hpr = h.getRealPredecessor()
       if hpr!=None:
         if h.has('Number','Sing'):
           if re.search(r'^dh?á$', hpr['token'].lower()):
@@ -465,7 +465,7 @@ class GAToken(GoidelicToken):
 
     # note case lemma=='ba'; that's current annotation for "ní ba" (fixed)
     # 10.3.6 After copula:
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr!=None:
       if (pr.isCopula() and (pr.has('Tense','Past') or pr.has('Mood','Cnd'))) or pr['lemma']=='ba':
         return [Constraint('Len', '10.3.6: Adjective is lenited after past or conditional copula')]
@@ -478,7 +478,7 @@ class GAToken(GoidelicToken):
     if self['lemma']=='bheith':
       return [Constraint('Len', 'Verbal noun “bheith” always gets Form=Len')]
     noun = self.getHead() if self['upos']=='NUM' else self
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     prToken = pr['token'].lower()
 
     # 10.2.1
@@ -535,7 +535,7 @@ class GAToken(GoidelicToken):
     # 10.2.4 following numbers
     if pr['upos']=='NUM' and pr['head']==self['index']:
       if prToken in ['dá','dhá','2']:
-        prpr = pr.getPredecessor()
+        prpr = pr.getRealPredecessor()
         if prpr.has('Poss','Yes') and (prpr.has('Gender','Fem') or prpr.has('Number','Plur')):
           return [Constraint('!Len', '10.2.4.b.e1: Do not lenite after “dhá” if preceded by plural or feminine possessive')]
         return [Constraint('Len', '10.2.4.b: Lenite after numbers “dá” or “dhá”')]
@@ -688,18 +688,17 @@ class GAToken(GoidelicToken):
       return [Constraint('!Len','10.2.9: Do not lenite following a genitive')]
 
     # 10.2.10 Nom. in form, genitive in function
-    # TODO: coordination? éabhlóid fhlóra agus fhána an domhain?
     if self.has('Definite','Def') and self.has('Number','Sing') and not self.hasPrecedingDependent():
       if (self.isGenitiveOfHead() and hd['index']<self['index']) or self.isObjectFollowingVerbalNoun():
         if self.demutatedToken() in ['San','Dé']:
           return [Constraint('!Len','10.2.10.e1: Never lenite this token despite being definite in genitive position')]
         else:
-          if hd['lemma'] != 'Dé' and self['lemma'] not in ['Béarla', 'Feirste', 'Fómhar', 'Gaeilge', 'Gaeltacht']:
+          if hd['lemma'] != 'Dé' and self['lemma'] not in ['Béarla', 'Fál', 'Feirste', 'Fómhar', 'Gaeilge', 'Gaeltacht']:
             return [Constraint('Len','10.2.10: Should lenite a definite noun in genitive position')]
 
     # 10.2.11 Surnames
     if pr.has('PartType','Pat'):
-      if prToken in ['ní', 'uí']:
+      if pr['lemma'] in ['ní', 'uí']:
         return [Constraint('Len','10.2.11: Lenite surname after “ní” or “uí”')]
       elif re.search('^(mh?|n)[ai][cg]$', prToken):
         if self['lemma'].lower()[0] in ['c','g']:
@@ -750,7 +749,7 @@ class GAToken(GoidelicToken):
       return [Constraint('Len', 'Independent future of “faigh” is lenited')]
     if self.has('Mood','Cnd'):
       return [Constraint('Len', '10.4.1.a: This conditional verb should be lenited')]
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('!Len', '10.4: This verb could only be lenited by a preceding particle')]
     # also "do" e.g. train line 1467?
@@ -766,7 +765,7 @@ class GAToken(GoidelicToken):
   def predictAdjectivePrefixH(self):
     if not self.admitsPrefixH():
       return [Constraint('!HPref', '10.12: Can only have a prefix h before initial vowel')]
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('!HPref', '10.12: Cannot have a prefix h on an adjective at the start of a sentence')]
     prToken = pr['token'].lower()
@@ -787,7 +786,7 @@ class GAToken(GoidelicToken):
   def predictNounPrefixH(self):
     if not self.admitsPrefixH():
       return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('!HPref', 'Cannot have a prefix h at the start of a sentence')]
     prToken = pr['token'].lower()
@@ -813,7 +812,7 @@ class GAToken(GoidelicToken):
     if pr.has('Poss','Yes') and pr.has('Gender','Fem'):
       return [Constraint('HPref', '10.11.7: Should have prefix h following feminine possessive')]
     if prToken=='dhá':
-      prpr = pr.getPredecessor()
+      prpr = pr.getRealPredecessor()
       if prpr!=None:
         if prpr.has('Poss','Yes') and prpr.has('Gender','Fem'):
           return [Constraint('HPref','10.11.7: Should have prefix h after feminine possessive + dhá')]
@@ -834,7 +833,7 @@ class GAToken(GoidelicToken):
   def predictVerbPrefixH(self):
     if not self.admitsPrefixH():
       return [Constraint('!HPref', 'Can only have a prefix h before initial vowel')]
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr!=None and pr['token'].lower()=='ná' and pr.has('Mood','Imp'):
       return [Constraint('HPref', '10.14.1: Should have prefix h after “ná”')]
     return [Constraint('!HPref', '10.14: Not sure why this verb has a prefix h')]
@@ -970,7 +969,7 @@ class GAToken(GoidelicToken):
     # if it's amod and not comp/sup, it gets features from NOUN => no Degree
     if self.isAttributiveAdjective():
       return [Constraint('None', 'Attributive adjectives should not have the Degree feature')]
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('Pos', 'Must be Degree=Pos at start of sentence')]
     prToken = pr['token'].lower()
@@ -1008,7 +1007,7 @@ class GAToken(GoidelicToken):
     return ans
 
   def predictFormADP(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('None', 'Prepositions usually do not have a Form')]
     prToken = pr['token'].lower()
@@ -1032,7 +1031,7 @@ class GAToken(GoidelicToken):
   def predictFormAUX(self):
     ans = self.predictVowelForm()
     # Eclipsis: go mba, dá mba, etc.
-    if self.isEclipsable() and self.getPredecessor()['lemma'] in ['dá','go']:
+    if self.isEclipsable() and self.getRealPredecessor()['lemma'] in ['dá','go']:
       ans.append(Constraint('Ecl', 'Should be eclipsed by preceding particle'))
     else:
       ans.append(Constraint('!Ecl', 'Copula is sometimes eclipsed, but not here'))
@@ -1046,7 +1045,7 @@ class GAToken(GoidelicToken):
   def predictFormDET(self):
     if self['token'].lower() in ['chaon', 'chuile']:
       return [Constraint('Len', 'Certain abbreviated determiners are lenited')]
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('None', 'No Form feature for sentence initial determiners')]
     if self['lemma']=='gach':
@@ -1078,7 +1077,7 @@ class GAToken(GoidelicToken):
   def predictFormNUM(self):
     ans = []
     tok = self['token'].lower()
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if pr==None:
       return [Constraint('None', 'Sentence-initial numbers should not have the Form feature')]
     prToken = pr['token'].lower()
@@ -1130,14 +1129,14 @@ class GAToken(GoidelicToken):
   def predictFormPRON(self):
     # Form=VF (rare — just "cérbh"?)
     ans = self.predictVowelForm()
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
 
     if self.admitsPrefixH():
       if pr==None:
         ans.append(Constraint('!HPref', '10.13: Cannot have prefix h on a sentence-initial pronoun'))
       else:
         # "pé" not in C.O. explicitly, but in FGB
-        if pr['token'].lower() in ['cé', 'ní', 'pé'] and self['lemma'] in ['é', 'í', 'ea', 'iad']:
+        if pr['token'].lower() in ['cé', 'cia', 'ní', 'pé'] and self['lemma'] in ['é', 'í', 'ea', 'iad']:
           ans.append(Constraint('HPref', '10.13.1: Should have a prefix h on this pronoun following “cé” or “ní”'))
         elif pr['token'].lower()=='ní' and self['lemma'] in ['éard', 'eo', 'in', 'iúd']:
           ans.append(Constraint('HPref', '10.13.2: Should have a prefix h on this demonstrative pronoun following “ní”'))
@@ -1323,7 +1322,7 @@ class GAToken(GoidelicToken):
       return [Constraint('Sing|Plur', 'All possessives should have a Number feature')]
     if self['Person']!=None:
       tok = self.deemphasizedToken().lower()
-      if re.search('(bh|[ií]nn$|[auú]b?$|leo$)', tok):
+      if re.search('(bh|[ií]nn$|[auú]b?$|le[oó]$)', tok):
         return [Constraint('Plur', 'Appears to be a plural pronomial so requires Number=Plur')]
       else:
         return [Constraint('Sing', 'Appears to be a singular pronomial so requires Number=Sing')]
@@ -1460,7 +1459,7 @@ class GAToken(GoidelicToken):
     return [Constraint('None', 'Not sure why this particle has a Polarity feature')]
 
   def predictPolarityVERB(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     if re.match('níl',self['token'].lower()) or \
         (pr!=None and pr.has('Polarity','Neg')):
       return [Constraint('Neg', 'Verb following negative particle must have Polarity=Neg feature')]
@@ -1488,7 +1487,7 @@ class GAToken(GoidelicToken):
   # second halves tagged NOUN as of April 2021
   # note the check that head of the ADP isn't "self"
   def predictPrepFormNOUN(self):
-    pr = self.getPredecessor()
+    pr = self.getRealPredecessor()
     cmpd = pr['token'].lower()+' '+self['token'].lower()
     if self['deprel']=='fixed':
       h = self.getHead()
@@ -1711,7 +1710,7 @@ class GAToken(GoidelicToken):
       else:
         return [Constraint('None', '10.9.1: Not sure why this noun has a prefix t')]
     elif self.hasLenitableS():
-      pr = self.getPredecessor()
+      pr = self.getRealPredecessor()
       prToken = pr['token'].lower()
       if self.has('Number','Sing') and self.has('Gender','Fem') and \
            self.has('Case','Nom') and \

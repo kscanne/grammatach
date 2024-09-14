@@ -111,6 +111,14 @@ class UDToken:
   def getPredecessor(self):
     return self._predecessor
 
+  # skip quotation marks
+  def getRealPredecessor(self):
+    pr = self.getPredecessor()
+    if pr==None or pr['lemma'] not in ["'", "''", '"', '“', '”', '‘', '’']:
+      return pr
+    else:
+      return pr.getRealPredecessor()
+
   def addVerified(self, vdict):
     self._verified = vdict
 
