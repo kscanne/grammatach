@@ -53,6 +53,7 @@ compoundPrepositions = frozenset([
   'in aice',
   'in ainneoin',
   'in airicis',
+  'in araicis',
   'in éadan',
   'in ionad',
   'le cois',
@@ -367,7 +368,9 @@ logainmWithArticle = frozenset([
   'Coraint',
   'Cordastáin',
   'Corsaic',
+  'Cotón',
   'Craoslach',
+  'Creimil',
   'Créit',
   'Crimé',
   'Cróit',
@@ -422,6 +425,7 @@ logainmWithArticle = frozenset([
   'Iodáil',
   'Iodúimé',
   'Iondúis',
+  'Ion-Mhongóil',
   'Iordáin',
   'Iorua',
   'Íoslainn',
@@ -952,6 +956,7 @@ languages = frozenset([
   'Cóiréis',
   'Coirnis',
   'Cóisis',
+  'Cómóis',
   'Concáinis',
   'Congóis',
   'Coptais',
@@ -1102,6 +1107,7 @@ languages = frozenset([
   'Sintis',
   'Siolóinis',
   'Siricis',
+  'Siuáingis',
   'Slaivis',
   'Slavóinis',
   'Slóivéinis',
@@ -1347,6 +1353,7 @@ people = frozenset([
   'Filipeach',
   'Filipíneach',
   'Filistíneach',
+  'Fínín',
   'Fionlannach',
   'Fomhórach',
   'Formósach',
@@ -1529,6 +1536,8 @@ people = frozenset([
   'Polainéiseach',
   'Polannach',
   'Pomaránach',
+  'Poncán',
+  'Poncánach',
   'Portaingéalach',
   'Preispitéireach',
   'Proinsiasach',
@@ -1665,6 +1674,8 @@ people = frozenset([
   'Voltach'
 ])
 
+# often Definite in the corpus, but these require
+# a definite article or the like to make them definite
 properButIndefinite = frozenset([
   'Aidbhint',
   'Aifreann',
